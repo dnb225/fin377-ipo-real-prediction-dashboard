@@ -405,7 +405,7 @@ elif page == "Model Performance":
 
     # Full results table
     with st.expander("View All Classification Results"):
-        st.dataframe(clf_results, use_container_width=True)
+        st.dataframe(clf_results, width="stretch")
 
     st.markdown("---")
 
@@ -445,7 +445,7 @@ elif page == "Model Performance":
 
     # Full results table
     with st.expander("View All Regression Results"):
-        st.dataframe(reg_results, use_container_width=True)
+        st.dataframe(reg_results, width="stretch")
 
     st.markdown("---")
 
@@ -569,15 +569,8 @@ elif page == "Investment Strategies":
     # Detailed metrics table
     st.markdown("## Detailed Strategy Metrics")
 
-    display_strategies = strategy_results.copy()
-    display_strategies['Avg Return'] = display_strategies['Avg Return'].apply(lambda x: f"{x*100:.2f}%")
-    display_strategies['Median Return'] = display_strategies['Median Return'].apply(lambda x: f"{x*100:.2f}%")
-    display_strategies['Volatility'] = display_strategies['Volatility'].apply(lambda x: f"{x*100:.2f}%")
-    display_strategies['Positive Rate'] = display_strategies['Positive Rate'].apply(lambda x: f"{x*100:.1f}%")
-    display_strategies['High Risk Rate'] = display_strategies['High Risk Rate'].apply(lambda x: f"{x*100:.1f}%")
-    display_strategies['Sharpe Ratio'] = display_strategies['Sharpe Ratio'].apply(lambda x: f"{x:.3f}")
-
-    st.dataframe(display_strategies, use_container_width=True)
+    # The CSV already has formatted columns, just display it
+    st.dataframe(strategy_results, width='stretch')
 
     st.markdown("---")
 
@@ -632,7 +625,7 @@ elif page == "Feature Analysis":
             height=500,
             showlegend=False
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         st.markdown("### Regression (Return Prediction)")
@@ -651,7 +644,7 @@ elif page == "Feature Analysis":
             height=500,
             showlegend=False
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.markdown("---")
 
@@ -701,7 +694,7 @@ elif page == "Feature Analysis":
 
     # Full feature importance table
     with st.expander("View All Feature Importances"):
-        st.dataframe(feature_importance, use_container_width=True, height=400)
+        st.dataframe(feature_importance, width="stretch", height=400)
 
 # ============================================================================
 # PAGE 5: IPO SANDBOX
