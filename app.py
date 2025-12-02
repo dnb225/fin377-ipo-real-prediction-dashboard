@@ -312,28 +312,56 @@ elif page == "Home & IPO Search":
 
     # Display results
     if len(filtered_data) > 0:
-        # Prepare display dataframe
-        display_df = filtered_data[[
-            'Issuer', 'TickerSymbol', 'IPOOfferDate', 'industry', 'OfferPrice',
-            'gross_proceeds', 'vc_backed', 'first_day_return', 'predicted_return',
-            'high_risk', 'predicted_high_risk'
-        ]].copy()
+        # Prepare display dataframe - check which columns exist
+        available_cols = ['Issuer', 'industry', 'OfferPrice', 'gross_proceeds', 'vc_backed',
+                          'first_day_return', 'predicted_return', 'high_risk', 'predicted_high_risk']
 
-        display_df['first_day_return'] = display_df['first_day_return'] * 100
-        display_df['predicted_return'] = display_df['predicted_return'] * 100
-        display_df['OfferPrice'] = display_df['OfferPrice'].apply(lambda x: f"${x:.2f}")
-        display_df['gross_proceeds'] = display_df['gross_proceeds'].apply(lambda x: f"${x:.1f}M")
-        display_df['vc_backed'] = display_df['vc_backed'].map({1: 'Yes', 0: 'No'})
-        display_df['high_risk'] = display_df['high_risk'].map({1: 'High Risk', 0: 'Low Risk'})
-        display_df['predicted_high_risk'] = display_df['predicted_high_risk'].map({1: 'High Risk', 0: 'Low Risk'})
+        # Add optional columns if they exist
+        if 'TickerSymbol' in filtered_data.columns:
+            available_cols.insert(1, 'TickerSymbol')
+        if 'IPOOfferDate' in filtered_data.columns:
+            available_cols.insert(2, 'IPOOfferDate')
+        if 'ipo_year' in filtered_data.columns and 'IPOOfferDate' not in filtered_data.columns:
+            available_cols.insert(2, 'ipo_year')
 
-        display_df.columns = [
-            'Company', 'Ticker', 'IPO Date', 'Industry', 'Offer Price',
-            'Proceeds', 'VC-Backed', 'Actual Return (%)', 'Predicted Return (%)',
-            'Actual Risk', 'Predicted Risk'
-        ]
+        # Select only available columns
+        display_cols = [col for col in available_cols if col in filtered_data.columns]
+        display_df = filtered_data[display_cols].copy()
 
-        st.dataframe(display_df, use_container_width=True, height=400)
+        # Format numeric columns
+        if 'first_day_return' in display_df.columns:
+            display_df['first_day_return'] = display_df['first_day_return'] * 100
+        if 'predicted_return' in display_df.columns:
+            display_df['predicted_return'] = display_df['predicted_return'] * 100
+        if 'OfferPrice' in display_df.columns:
+            display_df['OfferPrice'] = display_df['OfferPrice'].apply(lambda x: f"${x:.2f}")
+        if 'gross_proceeds' in display_df.columns:
+            display_df['gross_proceeds'] = display_df['gross_proceeds'].apply(lambda x: f"${x:.1f}M")
+        if 'vc_backed' in display_df.columns:
+            display_df['vc_backed'] = display_df['vc_backed'].map({1: 'Yes', 0: 'No'})
+        if 'high_risk' in display_df.columns:
+            display_df['high_risk'] = display_df['high_risk'].map({1: 'High Risk', 0: 'Low Risk'})
+        if 'predicted_high_risk' in display_df.columns:
+            display_df['predicted_high_risk'] = display_df['predicted_high_risk'].map({1: 'High Risk', 0: 'Low Risk'})
+
+        # Rename columns for display
+        rename_dict = {
+            'Issuer': 'Company',
+            'TickerSymbol': 'Ticker',
+            'IPOOfferDate': 'IPO Date',
+            'ipo_year': 'Year',
+            'industry': 'Industry',
+            'OfferPrice': 'Offer Price',
+            'gross_proceeds': 'Proceeds',
+            'vc_backed': 'VC-Backed',
+            'first_day_return': 'Actual Return (%)',
+            'predicted_return': 'Predicted Return (%)',
+            'high_risk': 'Actual Risk',
+            'predicted_high_risk': 'Predicted Risk'
+        }
+        display_df.rename(columns={k: v for k, v in rename_dict.items() if k in display_df.columns}, inplace=True)
+
+        st.dataframe(display_df, width='stretch', height=400)
 
         # Download button
         csv = filtered_data.to_csv(index=False)
@@ -379,7 +407,7 @@ elif page == "Model Performance":
             showlegend=False
         )
         fig.add_vline(x=0.5, line_dash="dash", line_color="red", annotation_text="Random")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col2:
         st.markdown("### Best Model")
@@ -392,7 +420,7 @@ elif page == "Model Performance":
 
     # Full results table
     with st.expander("View All Classification Results"):
-        st.dataframe(clf_results, use_container_width=True)
+        st.dataframe(clf_results, width='stretch')
 
     st.markdown("---")
 
@@ -419,7 +447,7 @@ elif page == "Model Performance":
             height=400,
             showlegend=False
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col2:
         st.markdown("### Best Model")
@@ -432,7 +460,7 @@ elif page == "Model Performance":
 
     # Full results table
     with st.expander("View All Regression Results"):
-        st.dataframe(reg_results, use_container_width=True)
+        st.dataframe(reg_results, width='stretch')
 
     st.markdown("---")
 
@@ -479,7 +507,16 @@ elif page == "Investment Strategies":
     col1, col2, col3, col4 = st.columns(4)
 
     best_strategy = strategy_results.iloc[0]
-    baseline_strategy = strategy_results[strategy_results['Strategy'] == 'Buy All'].iloc[0]
+
+    # Safely get baseline strategy
+    baseline_mask = strategy_results['Strategy'] == 'Buy All'
+    if baseline_mask.any():
+        baseline_strategy = strategy_results[baseline_mask].iloc[0]
+        baseline_return = baseline_strategy['Avg Return']
+    else:
+        # If "Buy All" doesn't exist, use the last strategy as baseline
+        baseline_strategy = strategy_results.iloc[-1]
+        baseline_return = baseline_strategy['Avg Return']
 
     with col1:
         st.metric("Best Strategy", best_strategy['Strategy'])
@@ -488,7 +525,7 @@ elif page == "Investment Strategies":
     with col3:
         st.metric("Sharpe Ratio", f"{best_strategy['Sharpe Ratio']:.3f}")
     with col4:
-        improvement = (best_strategy['Avg Return'] - baseline_strategy['Avg Return']) * 100
+        improvement = (best_strategy['Avg Return'] - baseline_return) * 100
         st.metric("vs Baseline", f"+{improvement:.2f}pp")
 
     st.markdown("---")
@@ -515,7 +552,7 @@ elif page == "Investment Strategies":
             height=400
         )
         fig.add_vline(x=0, line_dash="dash", line_color="gray")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col2:
         # Sharpe ratio comparison
@@ -534,7 +571,7 @@ elif page == "Investment Strategies":
             yaxis_title="",
             height=400
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # Detailed metrics table
     st.markdown("## Detailed Strategy Metrics")
@@ -547,7 +584,7 @@ elif page == "Investment Strategies":
     display_strategies['High Risk Rate'] = display_strategies['High Risk Rate'].apply(lambda x: f"{x * 100:.1f}%")
     display_strategies['Sharpe Ratio'] = display_strategies['Sharpe Ratio'].apply(lambda x: f"{x:.3f}")
 
-    st.dataframe(display_strategies, use_container_width=True)
+    st.dataframe(display_strategies, width='stretch')
 
     st.markdown("---")
 
@@ -604,7 +641,7 @@ elif page == "Feature Analysis":
             height=500,
             showlegend=False
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col2:
         st.markdown("### Regression (Return Prediction)")
@@ -623,7 +660,7 @@ elif page == "Feature Analysis":
             height=500,
             showlegend=False
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     st.markdown("---")
 
@@ -673,7 +710,7 @@ elif page == "Feature Analysis":
 
     # Full feature importance table
     with st.expander("View All Feature Importances"):
-        st.dataframe(feature_importance, use_container_width=True, height=400)
+        st.dataframe(feature_importance, width='stretch', height=400)
 
 # ============================================================================
 # PAGE 5: IPO SANDBOX
@@ -840,6 +877,15 @@ elif page == "IPO Sandbox":
 
     # Scale features
     feature_vector_scaled = scaler.transform(feature_vector)
+
+    # Get top features from feature importance
+    if 'feature_importance' in dir() and feature_importance is not None:
+        top_10_features = feature_importance.head(10)['feature'].tolist()
+    else:
+        # Default important features if feature_importance is not available
+        top_10_features = ['OfferPrice', 'gross_proceeds', 'vc_backed', 'firm_age',
+                           'is_tech', 'price_revision', 'NumberofAmendments',
+                           'revenue', 'assets', 'is_young_firm']
 
     # Make predictions
     if st.button("Predict IPO Performance", type="primary"):
