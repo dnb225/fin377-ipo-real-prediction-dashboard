@@ -1,9 +1,6 @@
 """
-IPO Risk Prediction Dashboard - PART 1
-Setup, Imports, and Introduction Page
-
-This file contains the first part of the app.py code.
-To use: Combine all parts (PART1, PART2, PART3) into a single app.py file.
+IPO Risk Prediction Dashboard
+Real SDC Platinum Data (1980-2017)
 """
 
 import streamlit as st
@@ -55,33 +52,29 @@ def load_models():
             feature_columns = pickle.load(f)
         with open('models/metadata.pkl', 'rb') as f:
             metadata = pickle.load(f)
-        with open('models/all_classification_models.pkl', 'rb') as f:
-            all_classifiers = pickle.load(f)
-        with open('models/all_regression_models.pkl', 'rb') as f:
-            all_regressors = pickle.load(f)
 
-        return classifier, regressor, scaler, feature_columns, metadata, all_classifiers, all_regressors
+        return classifier, regressor, scaler, feature_columns, metadata
     except FileNotFoundError:
-        st.error("Model files not found. Please run the Jupyter notebook first to train models.")
-        return None, None, None, None, None, None, None
+        st.error("Model files not found. Please run all Jupyter notebooks (Parts 1-5) first to train models.")
+        return None, None, None, None, None
 
 @st.cache_data
 def load_data():
     """Load test predictions and results"""
     try:
-        test_preds = pd.read_csv('data/test_predictions.csv')
-        clf_results = pd.read_csv('data/classification_results.csv')
-        reg_results = pd.read_csv('data/regression_results.csv')
-        strategy_results = pd.read_csv('data/strategy_summary.csv')
-        feature_importance = pd.read_csv('data/feature_importance.csv')
+        test_preds = pd.read_csv('data/final/test_predictions.csv')
+        clf_results = pd.read_csv('data/final/classification_results.csv')
+        reg_results = pd.read_csv('data/final/regression_results.csv')
+        strategy_results = pd.read_csv('data/final/strategy_summary.csv')
+        feature_importance = pd.read_csv('data/final/feature_importance.csv')
 
         return test_preds, clf_results, reg_results, strategy_results, feature_importance
     except FileNotFoundError:
-        st.error("Data files not found. Please run the Jupyter notebook first.")
+        st.error("Data files not found. Please run all Jupyter notebooks (Parts 1-5) first.")
         return None, None, None, None, None
 
 # Load everything
-classifier, regressor, scaler, feature_columns, metadata, all_classifiers, all_regressors = load_models()
+classifier, regressor, scaler, feature_columns, metadata = load_models()
 test_preds, clf_results, reg_results, strategy_results, feature_importance = load_data()
 
 # Check if data loaded successfully
@@ -98,19 +91,21 @@ page = st.sidebar.radio(
 st.sidebar.markdown("---")
 st.sidebar.markdown("### About")
 st.sidebar.info(
-    f"""
-    This dashboard predicts IPO first-day returns and identifies high-risk offerings 
-    using machine learning models trained on **real IPO data from SDC Platinum** 
-    (1,265 IPOs from 1980-2017).
+    """
+    **IPO Risk Prediction Dashboard**
     
-    **Models Used:**
-    - Classification: {metadata['best_classifier_name']}
-    - Regression: {metadata['best_regressor_name']}
+    This dashboard uses machine learning to predict IPO first-day returns and identify high-risk offerings.
     
-    **Training Period:** {metadata['train_years']}
-    **Test Period:** {metadata['test_years']}
+    **Data:** SDC Platinum IPO Database (1980-2017)
     
-    **Created by:** JLD Inc. LLC. Partners
+    **Models:** Classification & Regression
+    
+    **Team:** JLD Inc. LLC. Partners
+    - Logan Wesselt
+    - Julian Tashjian  
+    - Dylan Bollinger
+    
+    **Course:** FIN 377 - Lehigh University
     """
 )
 
@@ -118,247 +113,296 @@ st.sidebar.info(
 # PAGE 0: INTRODUCTION
 # ============================================================================
 if page == "Introduction":
-    st.title("IPO Risk Prediction Dashboard")
-    st.markdown("### Machine Learning for First-Day Return Prediction")
+    st.title("📈 IPO Risk Prediction Dashboard")
+    st.markdown("### Machine Learning for Intelligent IPO Investment Decisions")
 
     st.markdown("---")
 
-    # Project Overview
-    st.markdown("## Project Overview")
-    st.write("""
-    This dashboard demonstrates the application of machine learning techniques to predict 
-    Initial Public Offering (IPO) first-day returns and identify high-risk offerings using 
-    **real IPO data from the SDC Platinum database**. The project was developed as part of 
-    FIN 377 coursework at Lehigh University.
-    """)
-
-    # Research Question
-    st.markdown("## Research Question")
-    st.info("""
-    **Can a machine learning model, using only information available before an IPO's first trading day, 
-    effectively predict first-day IPO returns and identify "high-risk" IPOs prone to large negative price moves?**
-    """)
-
-    # Data Overview
-    st.markdown("## Real IPO Data")
-
+    # Project overview
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("Total IPOs", f"{len(test_preds):,}")
+        st.metric("Total IPOs", f"{metadata['n_ipos']:,}" if metadata else "N/A")
     with col2:
-        st.metric("Time Period", metadata['test_years'])
+        st.metric("Time Period", metadata.get('date_range', 'N/A') if metadata else "N/A")
     with col3:
-        st.metric("Features", metadata['n_features'])
+        st.metric("Features", metadata.get('n_features', 'N/A') if metadata else "N/A")
 
-    with st.expander("**Dataset Details**", expanded=True):
-        st.write(f"""
-        This project uses **real IPO data** from the SDC Platinum database, which contains 
-        comprehensive information about initial public offerings.
+    st.markdown("---")
+
+    # Research question
+    st.markdown("## 🎯 Research Question")
+    st.markdown("""
+    **Can machine learning models, using only information available before an IPO's first trading day, 
+    predict first-day returns and identify high-risk IPOs prone to large negative price moves?**
+    
+    This question is highly relevant because all investors—retail or institutional—enter an IPO allocation 
+    decision with limited information. If machine learning can extract predictive patterns from pre-IPO data, 
+    it offers practical value for investment decisions.
+    """)
+
+    st.markdown("---")
+
+    # Key findings
+    st.markdown("## 📊 Key Findings")
+
+    if clf_results is not None and len(clf_results) > 0:
+        best_auc = clf_results['Validation AUC'].max()
+
+        if best_auc >= 0.75:
+            perf_desc = "strong discriminatory power"
+            perf_icon = "✅"
+        elif best_auc >= 0.65:
+            perf_desc = "moderate predictive ability"
+            perf_icon = "✓"
+        elif best_auc >= 0.55:
+            perf_desc = "weak but above-random predictive ability"
+            perf_icon = "⚠️"
+        else:
+            perf_desc = "limited predictive power (near-random performance)"
+            perf_icon = "❌"
+
+        st.markdown(f"""
+        **{perf_icon} Classification Performance:** The model shows {perf_desc} for identifying 
+        high-risk IPOs (AUC: {best_auc:.3f}).
         
-        **Data Source:**
-        - SDC Platinum IPO Database
-        - 1,472 total IPOs from 1980-2017
-        - 1,265 IPOs with complete first-day return data
+        **📈 Data Source:** Analysis based on {len(test_preds):,} IPOs from the SDC Platinum database 
+        spanning {metadata.get('date_range', '1980-2017')}.
         
-        **Key Variables:**
-        - **Offer Characteristics**: Offer price, gross proceeds, shares offered, price revisions
-        - **Firm Characteristics**: Industry (SIC code), firm age, revenue, assets, profitability
-        - **Deal Structure**: VC-backing, primary vs secondary shares, underwriter reputation
-        - **Market Conditions**: Filing-to-offer timing, number of amendments
-        
-        **Target Variable:**
-        - **First-Day Return**: Calculated as (Closing Price Day 1 - Offer Price) / Offer Price
-        - **High-Risk Classification**: IPOs with first-day returns below -5%
-        
-        **Data Split:**
-        - Training: 1980-2010 ({metadata['n_train']} IPOs)
-        - Validation: 2011-2014 ({metadata['n_val']} IPOs)
-        - Test: 2015-2017 ({metadata['n_test']} IPOs)
+        **💡 Investment Strategies:** ML-driven investment strategies demonstrate improved risk-adjusted 
+        returns compared to naive baseline approaches.
         """)
 
-    with st.expander("**Model Training Approach**"):
-        st.write(f"""
-        **Temporal Split to Avoid Look-Ahead Bias:**
-        - Training: {metadata['train_years']} ({metadata['n_train']} IPOs)
-        - Test: {metadata['test_years']} ({metadata['n_test']} IPOs)
-        
-        **Models Trained:**
-        - Logistic Regression (baseline)
-        - Random Forest
-        - XGBoost
-        - LightGBM
-        - CatBoost
-        
-        **Feature Engineering:**
-        - Log transformations for skewed variables
-        - Interaction terms (e.g., Tech × VC-backed)
-        - Industry classification from SIC codes
-        - Temporal features (firm age, filing duration)
-        - Valuation ratios (proceeds-to-assets, revenue-to-assets)
-        """)
+    st.markdown("---")
 
-    with st.expander("**Evaluation Metrics**"):
-        st.write("""
-        **Classification (High-Risk Detection):**
-        - ROC-AUC Score: Measures discriminatory power
-        - Precision: Accuracy of high-risk predictions
-        - Recall: Coverage of actual high-risk IPOs
-        - F1 Score: Harmonic mean of precision and recall
-        
-        **Regression (Return Prediction):**
-        - Mean Absolute Error (MAE): Average prediction error
-        - Root Mean Squared Error (RMSE): Penalizes large errors
-        - R² Score: Proportion of variance explained
-        
-        **Investment Strategy Evaluation:**
-        - Average Return: Portfolio performance
-        - Sharpe Ratio: Risk-adjusted returns
-        - Positive Rate: Percentage of profitable investments
-        - High-Risk Rate: Percentage of large losses
-        """)
-
-    # Key Results
-    st.markdown("## Key Results")
+    # Methodology
+    st.markdown("## 🔬 Methodology")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### Classification Performance")
-        st.metric("Test AUC", f"{metadata['test_auc']:.3f}")
-        st.write("The model successfully identifies high-risk IPOs with strong discriminatory power.")
+        st.markdown("### Classification Models")
+        st.markdown("""
+        **Objective:** Predict high-risk IPOs (bottom 25% returns)
+        
+        **Models Tested:**
+        - Logistic Regression
+        - Random Forest
+        - XGBoost
+        - LightGBM
+        
+        **Metric:** AUC-ROC Score
+        
+        **Best Model:** {0}
+        """.format(clf_results.iloc[0]['Model'] if clf_results is not None else "N/A"))
 
     with col2:
-        st.markdown("### Regression Performance")
-        st.metric("Test MAE", f"{metadata['test_mae']*100:.2f}%")
-        st.write("The model predicts first-day returns with reasonable accuracy.")
+        st.markdown("### Regression Models")
+        st.markdown("""
+        **Objective:** Predict numerical first-day returns
+        
+        **Models Tested:**
+        - Linear Regression
+        - Ridge Regression
+        - Decision Tree
+        - Random Forest
+        - XGBoost
+        - LightGBM
+        
+        **Metrics:** MAE, RMSE, R²
+        
+        **Best Model:** {0}
+        """.format(reg_results.iloc[0]['Model'] if reg_results is not None else "N/A"))
 
     st.markdown("---")
 
-    st.markdown("### 📊 Dashboard Features")
-    st.write("""
-    Explore the following sections:
+    # Features
+    st.markdown("## 📋 Features Used")
+
+    st.markdown("""
+    Our models use only information available **before** the IPO begins trading:
     
-    1. **Home & IPO Search**: Browse historical IPO data and search for specific offerings
-    2. **Model Performance**: Detailed evaluation of classification and regression models
-    3. **Investment Strategies**: Compare different investment approaches based on predictions
-    4. **Feature Analysis**: Understand which factors drive IPO performance
-    5. **IPO Sandbox**: Create custom IPO scenarios and get predictions
+    **Deal Structure:**
+    - Offer price, gross proceeds, shares offered
+    - Price revision from filing range
+    - Primary vs secondary shares
+    
+    **Firm Characteristics:**
+    - Firm age at IPO
+    - Revenue and assets
+    - Industry classification
+    
+    **Quality Indicators:**
+    - VC-backed status
+    - Underwriter quality (amendment count)
+    
+    **Market Conditions:**
+    - Hot market periods (1995-2000, 2013+)
+    - Crisis periods (2001-2002, 2008-2009)
+    - IPO timing (year, quarter, month)
+    
+    **Total Features:** {0}
+    """.format(len(feature_columns) if feature_columns else "N/A"))
+
+    st.markdown("---")
+
+    # How to use
+    st.markdown("## 🧭 How to Use This Dashboard")
+
+    st.markdown("""
+    1. **Home & IPO Search:** Explore individual IPO predictions and search by company
+    2. **Model Performance:** View detailed model evaluation metrics and comparisons
+    3. **Investment Strategies:** Compare ML-driven investment strategies against baseline
+    4. **Feature Analysis:** Understand which features drive predictions
+    5. **IPO Sandbox:** Create hypothetical IPO scenarios and see predictions
     """)
 
-    st.markdown("---")
-    st.success("✅ Navigate using the sidebar to explore the dashboard!")
+# ============================================================================
+# PAGE 1: HOME & IPO SEARCH
+# ============================================================================
 elif page == "Home & IPO Search":
-    st.title("IPO Database Explorer")
-    st.markdown("### Browse and Search Historical IPO Data")
+    st.title("🏠 Home & IPO Search")
+    st.markdown("### Explore Individual IPO Predictions")
 
     st.markdown("---")
 
     # Summary statistics
-    st.markdown("## Dataset Overview")
+    st.markdown("## 📊 Dataset Overview")
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         st.metric("Total IPOs", f"{len(test_preds):,}")
     with col2:
-        avg_return = test_preds['first_day_return'].mean() * 100
-        st.metric("Avg First-Day Return", f"{avg_return:.2f}%")
+        st.metric("Avg First-Day Return", f"{test_preds['first_day_return'].mean()*100:.2f}%")
     with col3:
-        high_risk_pct = test_preds['high_risk'].mean() * 100
-        st.metric("High-Risk Rate", f"{high_risk_pct:.1f}%")
+        st.metric("High-Risk Rate", f"{test_preds['high_risk'].mean()*100:.1f}%")
     with col4:
-        vc_backed_pct = test_preds['vc_backed'].mean() * 100
-        st.metric("VC-Backed", f"{vc_backed_pct:.1f}%")
+        st.metric("VC-Backed Rate", f"{test_preds['vc_backed'].mean()*100:.0f}%")
 
     st.markdown("---")
 
-    # Search and filter options
-    st.markdown("## Search IPOs")
+    # Filters
+    st.markdown("## 🔍 Search & Filter")
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         # Industry filter
-        industries = ['All'] + sorted(test_preds['industry'].unique().tolist())
-        selected_industry = st.selectbox("Filter by Industry", industries)
+        industries = ['All'] + sorted(test_preds['industry'].unique().tolist()) if 'industry' in test_preds.columns else ['All']
+        industry_filter = st.selectbox("Industry", industries)
 
     with col2:
         # Year filter
-        years = ['All'] + sorted(test_preds['ipo_year'].unique().tolist(), reverse=True)
-        selected_year = st.selectbox("Filter by Year", years)
+        years = ['All'] + sorted(test_preds['ipo_year'].unique().tolist(), reverse=True) if 'ipo_year' in test_preds.columns else ['All']
+        year_filter = st.selectbox("Year", years)
 
-    # Text search
-    search_term = st.text_input("Search by Company Name or Ticker", "")
+    with col3:
+        # Search by company
+        search_term = st.text_input("Search Company", placeholder="Enter company name...")
 
     # Apply filters
-    filtered_data = test_preds.copy()
+    filtered_df = test_preds.copy()
 
-    if selected_industry != 'All':
-        filtered_data = filtered_data[filtered_data['industry'] == selected_industry]
+    if industry_filter != 'All' and 'industry' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['industry'] == industry_filter]
 
-    if selected_year != 'All':
-        filtered_data = filtered_data[filtered_data['ipo_year'] == selected_year]
+    if year_filter != 'All' and 'ipo_year' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['ipo_year'] == int(year_filter)]
 
     if search_term:
-        mask = (filtered_data['Issuer'].str.contains(search_term, case=False, na=False) |
-                filtered_data['TickerSymbol'].str.contains(search_term, case=False, na=False))
-        filtered_data = filtered_data[mask]
+        filtered_df = filtered_df[filtered_df['Issuer'].str.contains(search_term, case=False, na=False)]
 
-    st.markdown(f"**Showing {len(filtered_data)} IPOs**")
+    st.markdown(f"**Showing {len(filtered_df)} IPOs**")
 
     # Display results
-    if len(filtered_data) > 0:
-        # Prepare display dataframe - use available columns
-        display_cols = ['Issuer', 'ipo_year', 'industry', 'OfferPrice', 'gross_proceeds',
-                       'vc_backed', 'first_day_return', 'predicted_return',
-                       'high_risk', 'predicted_high_risk']
+    if len(filtered_df) > 0:
+        # Sort options
+        sort_by = st.selectbox(
+            "Sort by:",
+            ["Predicted Return (High to Low)", "Predicted Return (Low to High)",
+             "Actual Return (High to Low)", "Risk Probability (High to Low)"]
+        )
 
-        # Select only columns that exist
-        display_cols = [col for col in display_cols if col in filtered_data.columns]
-        display_df = filtered_data[display_cols].copy()
+        if "High to Low" in sort_by:
+            ascending = False
+        else:
+            ascending = True
 
-        # Format columns
-        if 'first_day_return' in display_df.columns:
-            display_df['first_day_return'] = display_df['first_day_return'] * 100
-        if 'predicted_return' in display_df.columns:
-            display_df['predicted_return'] = display_df['predicted_return'] * 100
-        if 'OfferPrice' in display_df.columns:
-            display_df['OfferPrice'] = display_df['OfferPrice'].apply(lambda x: f"${x:.2f}")
-        if 'gross_proceeds' in display_df.columns:
-            display_df['gross_proceeds'] = display_df['gross_proceeds'].apply(lambda x: f"${x:.1f}M")
-        if 'vc_backed' in display_df.columns:
-            display_df['vc_backed'] = display_df['vc_backed'].map({1: 'Yes', 0: 'No'})
-        if 'high_risk' in display_df.columns:
-            display_df['high_risk'] = display_df['high_risk'].map({1: 'High Risk', 0: 'Low Risk'})
-        if 'predicted_high_risk' in display_df.columns:
-            display_df['predicted_high_risk'] = display_df['predicted_high_risk'].map({1: 'High Risk', 0: 'Low Risk'})
+        if "Predicted Return" in sort_by:
+            sort_col = 'predicted_return'
+        elif "Actual Return" in sort_by:
+            sort_col = 'first_day_return'
+        else:
+            sort_col = 'risk_probability'
 
-        # Rename for display
-        rename_dict = {
-            'Issuer': 'Company',
-            'ipo_year': 'Year',
-            'industry': 'Industry',
-            'OfferPrice': 'Offer Price',
-            'gross_proceeds': 'Proceeds',
-            'vc_backed': 'VC-Backed',
-            'first_day_return': 'Actual Return (%)',
-            'predicted_return': 'Predicted Return (%)',
-            'high_risk': 'Actual Risk',
-            'predicted_high_risk': 'Predicted Risk'
-        }
-        display_df.rename(columns={k: v for k, v in rename_dict.items() if k in display_df.columns}, inplace=True)
+        filtered_df = filtered_df.sort_values(sort_col, ascending=ascending)
 
-        st.dataframe(display_df, width='stretch', height=400)
+        # Display table
+        display_cols = ['Issuer', 'ipo_year', 'industry', 'OfferPrice', 'first_day_return',
+                       'predicted_return', 'risk_probability', 'vc_backed']
+        display_cols = [col for col in display_cols if col in filtered_df.columns]
+
+        st.dataframe(
+            filtered_df[display_cols].head(20),
+            column_config={
+                "first_day_return": st.column_config.NumberColumn("Actual Return", format="%.2f%%"),
+                "predicted_return": st.column_config.NumberColumn("Predicted Return", format="%.2f%%"),
+                "risk_probability": st.column_config.NumberColumn("Risk Prob", format="%.1f%%"),
+                "OfferPrice": st.column_config.NumberColumn("Offer Price", format="$%.2f")
+            },
+            hide_index=True,
+            use_container_width=True
+        )
 
         # Download button
-        csv = filtered_data.to_csv(index=False)
+        csv = filtered_df.to_csv(index=False)
         st.download_button(
-            label="Download Filtered Data as CSV",
+            label="📥 Download Results",
             data=csv,
-            file_name="filtered_ipos.csv",
+            file_name="ipo_predictions.csv",
             mime="text/csv"
         )
+
+        # Sample detailed view
+        st.markdown("---")
+        st.markdown("## 🔬 Detailed View")
+
+        selected_ipo = st.selectbox(
+            "Select an IPO for detailed view:",
+            filtered_df['Issuer'].tolist()
+        )
+
+        if selected_ipo:
+            row = filtered_df[filtered_df['Issuer'] == selected_ipo].iloc[0]
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.markdown("**Company Info**")
+                st.write(f"Company: {row['Issuer']}")
+                if 'TickerSymbol' in row:
+                    st.write(f"Ticker: {row['TickerSymbol']}")
+                if 'ipo_year' in row:
+                    st.write(f"IPO Year: {row['ipo_year']:.0f}")
+
+            with col2:
+                st.markdown("**Predictions**")
+                if 'predicted_return' in row:
+                    st.write(f"Predicted Return: {row['predicted_return']*100:.2f}%")
+                if 'risk_probability' in row:
+                    st.write(f"Risk Probability: {row['risk_probability']*100:.1f}%")
+                if 'predicted_high_risk' in row:
+                    st.write(f"Risk Classification: {'High Risk' if row['predicted_high_risk'] else 'Low Risk'}")
+
+            with col3:
+                st.markdown("**Actual Outcome**")
+                if 'first_day_return' in row:
+                    st.write(f"Actual Return: {row['first_day_return']*100:.2f}%")
+                if 'high_risk' in row:
+                    st.write(f"Actual Risk: {'High Risk' if row['high_risk'] else 'Low Risk'}")
+                if 'correct_classification' in row:
+                    st.write(f"Correct Prediction: {'✓ Yes' if row['correct_classification'] else '✗ No'}")
     else:
         st.warning("No IPOs match your search criteria.")
 
@@ -366,7 +410,7 @@ elif page == "Home & IPO Search":
 # PAGE 2: MODEL PERFORMANCE
 # ============================================================================
 elif page == "Model Performance":
-    st.title("Model Performance Analysis")
+    st.title("🎯 Model Performance Analysis")
     st.markdown("### Detailed Evaluation of ML Models")
 
     st.markdown("---")
@@ -383,29 +427,46 @@ elif page == "Model Performance":
             x=clf_results['Validation AUC'],
             y=clf_results['Model'],
             orientation='h',
-            marker=dict(color='#1f77b4'),
+            marker=dict(
+                color=clf_results['Validation AUC'],
+                colorscale='Viridis',
+                showscale=False,
+                line=dict(color='white', width=1)
+            ),
             text=[f"{x:.3f}" for x in clf_results['Validation AUC']],
-            textposition='auto'
+            textposition='outside'
         ))
         fig.update_layout(
-            title="Classification Model Performance (AUC)",
-            xaxis_title="AUC-ROC Score",
+            title="Classification Model Performance (AUC-ROC)",
+            xaxis_title="AUC Score (Higher is Better)",
             yaxis_title="",
             height=400,
-            showlegend=False
+            showlegend=False,
+            plot_bgcolor='rgba(240,240,240,0.5)'
         )
         fig.add_vline(x=0.5, line_dash="dash", line_color="red", annotation_text="Random")
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.markdown("### Best Model")
+        st.markdown("### 🏆 Best Model")
         best_clf = clf_results.iloc[0]
         st.metric("Model", best_clf['Model'])
         st.metric("Validation AUC", f"{best_clf['Validation AUC']:.3f}")
 
+        # Interpretation
+        auc = best_clf['Validation AUC']
+        if auc >= 0.75:
+            st.success("✅ Excellent discriminatory power")
+        elif auc >= 0.65:
+            st.info("✓ Good predictive ability")
+        elif auc >= 0.55:
+            st.warning("⚠️ Weak but above-random")
+        else:
+            st.error("❌ Near-random performance")
+
     # Full results table
     with st.expander("View All Classification Results"):
-        st.dataframe(clf_results, width="stretch")
+        st.dataframe(clf_results, use_container_width=True)
 
     st.markdown("---")
 
@@ -421,73 +482,77 @@ elif page == "Model Performance":
             x=reg_results['Validation MAE'],
             y=reg_results['Model'],
             orientation='h',
-            marker=dict(color='#ff7f0e'),
+            marker=dict(
+                color=reg_results['Validation MAE'],
+                colorscale='Reds',
+                reversescale=True,
+                showscale=False,
+                line=dict(color='white', width=1)
+            ),
             text=[f"{x:.4f}" for x in reg_results['Validation MAE']],
-            textposition='auto'
+            textposition='outside'
         ))
         fig.update_layout(
             title="Regression Model Performance (MAE)",
-            xaxis_title="Mean Absolute Error",
+            xaxis_title="Mean Absolute Error (Lower is Better)",
             yaxis_title="",
             height=400,
-            showlegend=False
+            showlegend=False,
+            plot_bgcolor='rgba(240,240,240,0.5)'
         )
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.markdown("### Best Model")
+        st.markdown("### 🏆 Best Model")
         best_reg = reg_results.iloc[0]
         st.metric("Model", best_reg['Model'])
         st.metric("Validation MAE", f"{best_reg['Validation MAE']:.4f}")
-        st.metric("MAE (%)", f"{best_reg['Validation MAE']*100:.2f}%")
-        if 'Validation R²' in reg_results.columns:
-            st.metric("R²", f"{best_reg['Validation R²']:.3f}")
+        if 'Validation R²' in best_reg:
+            st.metric("R² Score", f"{best_reg['Validation R²']:.4f}")
 
     # Full results table
     with st.expander("View All Regression Results"):
-        st.dataframe(reg_results, width="stretch")
+        st.dataframe(reg_results, use_container_width=True)
 
     st.markdown("---")
 
-    # Prediction Examples
-    st.markdown("## Sample Predictions")
+    # Sample predictions
+    st.markdown("## 🔬 Sample Predictions")
 
-    # Show some example predictions
-    sample_size = min(10, len(test_preds))
-    sample_ipos = test_preds.sample(n=sample_size, random_state=42)
+    sample_preds = test_preds.head(10).copy()
 
-    for idx, row in sample_ipos.iterrows():
-        company_name = row.get('Issuer', 'Unknown Company')
-        year = row.get('ipo_year', 'N/A')
+    # Create comparison chart
+    fig = go.Figure()
 
-        with st.expander(f"{company_name} - {year}"):
-            col1, col2, col3 = st.columns(3)
+    fig.add_trace(go.Scatter(
+        x=sample_preds.index,
+        y=sample_preds['first_day_return'] * 100,
+        mode='markers',
+        name='Actual',
+        marker=dict(size=10, color='blue')
+    ))
 
-            with col1:
-                st.markdown("**Actual Performance**")
-                if 'first_day_return' in row:
-                    st.write(f"First-Day Return: {row['first_day_return']*100:.2f}%")
-                if 'high_risk' in row:
-                    st.write(f"Risk Level: {'High Risk' if row['high_risk'] else 'Low Risk'}")
+    fig.add_trace(go.Scatter(
+        x=sample_preds.index,
+        y=sample_preds['predicted_return'] * 100,
+        mode='markers',
+        name='Predicted',
+        marker=dict(size=10, color='red', symbol='x')
+    ))
 
-            with col2:
-                st.markdown("**Predicted Performance**")
-                if 'predicted_return' in row:
-                    st.write(f"Predicted Return: {row['predicted_return']*100:.2f}%")
-                if 'risk_probability' in row:
-                    st.write(f"Risk Probability: {row['risk_probability']*100:.1f}%")
+    fig.update_layout(
+        title="Actual vs Predicted Returns (Sample)",
+        xaxis_title="IPO Index",
+        yaxis_title="First-Day Return (%)",
+        height=400,
+        showlegend=True,
+        plot_bgcolor='rgba(240,240,240,0.5)'
+    )
 
-            with col3:
-                st.markdown("**IPO Details**")
-                if 'industry' in row:
-                    st.write(f"Industry: {row['industry']}")
-                if 'OfferPrice' in row:
-                    st.write(f"Offer Price: ${row['OfferPrice']:.2f}")
-                if 'vc_backed' in row:
-                    st.write(f"VC-Backed: {'Yes' if row['vc_backed'] else 'No'}")
+    st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# PAGE 3: INVESTMENT STRATEGIES
+# PAGE 3: INVESTMENT STRATEGIES (ENHANCED)
 # ============================================================================
 elif page == "Investment Strategies":
     st.title("💼 Investment Strategy Analysis")
@@ -495,7 +560,7 @@ elif page == "Investment Strategies":
 
     st.markdown("---")
 
-    # FIX: Calculate true best strategy based on BOTH return AND Sharpe ratio
+    # Calculate true best strategy based on composite score
     strategy_results_copy = strategy_results.copy()
     strategy_results_copy['composite_score'] = (
         strategy_results_copy['Avg Return (%)'] * 0.6 +
@@ -504,7 +569,7 @@ elif page == "Investment Strategies":
     best_strategy_idx = strategy_results_copy['composite_score'].idxmax()
     best_strategy = strategy_results_copy.loc[best_strategy_idx]
 
-    # Get baseline for comparison
+    # Get baseline
     baseline_mask = strategy_results['Strategy'] == 'Buy All'
     if baseline_mask.any():
         baseline_strategy = strategy_results[baseline_mask].iloc[0]
@@ -548,7 +613,7 @@ elif page == "Investment Strategies":
 
     st.markdown("---")
 
-    # Interactive Strategy Selector
+    # Interactive filters
     st.markdown("## 🔍 Interactive Strategy Explorer")
 
     col_filter1, col_filter2 = st.columns([2, 1])
@@ -579,7 +644,7 @@ elif page == "Investment Strategies":
 
     st.markdown("---")
 
-    # Risk vs Return Scatter Plot
+    # Risk vs Return Scatter
     if len(filtered_strategies) > 0 and 'High-Risk Rate (%)' in filtered_strategies.columns:
         st.markdown("## 📊 Risk-Return Profile")
         st.markdown("*Higher returns with lower risk = better performance*")
@@ -620,10 +685,10 @@ elif page == "Investment Strategies":
             showlegend=False
         )
 
-        st.plotly_chart(fig_scatter, width='stretch')
+        st.plotly_chart(fig_scatter, use_container_width=True)
         st.markdown("---")
 
-    # Performance Comparison Charts
+    # Performance Charts
     st.markdown("## 📈 Performance Analysis")
 
     col1, col2 = st.columns(2)
@@ -642,8 +707,7 @@ elif page == "Investment Strategies":
                 line=dict(color='white', width=1)
             ),
             text=[f"{x:.2f}%" for x in filtered_strategies['Avg Return (%)']],
-            textposition='outside',
-            hovertemplate='<b>%{y}</b><br>Return: %{x:.2f}%<extra></extra>'
+            textposition='outside'
         ))
 
         fig_return.add_vline(x=baseline_return, line_dash="dash", line_color="red",
@@ -657,7 +721,7 @@ elif page == "Investment Strategies":
             plot_bgcolor='rgba(240,240,240,0.5)'
         )
 
-        st.plotly_chart(fig_return, width='stretch')
+        st.plotly_chart(fig_return, use_container_width=True)
 
         # High-Risk Rate
         if 'High-Risk Rate (%)' in filtered_strategies.columns:
@@ -674,8 +738,7 @@ elif page == "Investment Strategies":
                     line=dict(color='white', width=1)
                 ),
                 text=[f"{x:.1f}%" for x in filtered_strategies['High-Risk Rate (%)']],
-                textposition='outside',
-                hovertemplate='<b>%{y}</b><br>Risk: %{x:.1f}%<extra></extra>'
+                textposition='outside'
             ))
 
             fig_risk.update_layout(
@@ -686,7 +749,7 @@ elif page == "Investment Strategies":
                 plot_bgcolor='rgba(240,240,240,0.5)'
             )
 
-            st.plotly_chart(fig_risk, width='stretch')
+            st.plotly_chart(fig_risk, use_container_width=True)
 
     with col2:
         # Sharpe Ratio
@@ -702,8 +765,7 @@ elif page == "Investment Strategies":
                 line=dict(color='white', width=1)
             ),
             text=[f"{x:.3f}" for x in filtered_strategies['Sharpe Ratio']],
-            textposition='outside',
-            hovertemplate='<b>%{y}</b><br>Sharpe: %{x:.3f}<extra></extra>'
+            textposition='outside'
         ))
 
         fig_sharpe.add_vline(x=baseline_sharpe, line_dash="dash", line_color="red",
@@ -717,7 +779,7 @@ elif page == "Investment Strategies":
             plot_bgcolor='rgba(240,240,240,0.5)'
         )
 
-        st.plotly_chart(fig_sharpe, width='stretch')
+        st.plotly_chart(fig_sharpe, use_container_width=True)
 
         # IPOs Invested
         if 'IPOs Invested' in filtered_strategies.columns:
@@ -733,8 +795,7 @@ elif page == "Investment Strategies":
                     line=dict(color='white', width=1)
                 ),
                 text=filtered_strategies['IPOs Invested'].astype(int),
-                textposition='outside',
-                hovertemplate='<b>%{y}</b><br>IPOs: %{x}<extra></extra>'
+                textposition='outside'
             ))
 
             fig_count.update_layout(
@@ -745,16 +806,15 @@ elif page == "Investment Strategies":
                 plot_bgcolor='rgba(240,240,240,0.5)'
             )
 
-            st.plotly_chart(fig_count, width='stretch')
+            st.plotly_chart(fig_count, use_container_width=True)
 
     st.markdown("---")
 
-    # Detailed Metrics Table
+    # Detailed table
     st.markdown("## 📋 Detailed Strategy Metrics")
+    st.dataframe(filtered_strategies, use_container_width=True, height=300)
 
-    st.dataframe(filtered_strategies, width='stretch', height=300)
-
-    # Download button
+    # Download
     csv = filtered_strategies.to_csv(index=False)
     st.download_button(
         label="📥 Download Strategy Results",
@@ -771,31 +831,26 @@ elif page == "Investment Strategies":
     strategies_info = {
         "Buy All": {
             "description": "**Baseline strategy** - invest in all IPOs without selection criteria",
-            "approach": "No filtering",
             "pros": "Maximum diversification",
             "cons": "Includes high-risk IPOs"
         },
         "Avoid High Risk": {
             "description": "**Risk-averse** - invest only in IPOs with low predicted risk",
-            "approach": "Filter by risk probability < 50%",
             "pros": "Reduces downside exposure",
             "cons": "May miss high-return opportunities"
         },
         "Top 25% Returns": {
             "description": "**Growth-focused** - invest in top quartile predicted returns",
-            "approach": "Select top 25% by predicted return",
             "pros": "Maximizes potential returns",
             "cons": "Higher risk concentration"
         },
         "Combined Strategy": {
             "description": "**Balanced** - low risk AND above-median returns",
-            "approach": "Dual criteria filtering",
             "pros": "Best risk-adjusted returns",
             "cons": "Fewer opportunities"
         },
         "High Confidence": {
             "description": "**Selective** - invest only with high model confidence",
-            "approach": "Extreme probabilities only",
             "pros": "High conviction trades",
             "cons": "Very selective"
         }
@@ -809,7 +864,6 @@ elif page == "Investment Strategies":
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown(f"**Approach:** {info['approach']}")
                     st.markdown(f"**✅ Pros:** {info['pros']}")
                 with col2:
                     st.markdown(f"**❌ Cons:** {info['cons']}")
@@ -826,403 +880,354 @@ elif page == "Investment Strategies":
                         if 'IPOs Invested' in row:
                             st.metric("IPOs", f"{int(row['IPOs Invested'])}")
 
-
+# ============================================================================
+# PAGE 4: FEATURE ANALYSIS
+# ============================================================================
 elif page == "Feature Analysis":
-    st.title("Feature Importance Analysis")
-    st.markdown("### Understanding What Drives IPO Performance")
+    st.title("🔬 Feature Importance Analysis")
+    st.markdown("### Understanding What Drives IPO Performance Predictions")
 
     st.markdown("---")
 
-    # Top features overview
-    st.markdown("## Most Important Features")
+    # Top features
+    st.markdown("## 🏆 Most Important Features")
 
     top_10_features = feature_importance.head(10)['feature'].tolist()
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### Classification (High-Risk Detection)")
+        # Classification importance
+        fig = go.Figure()
         top_clf = feature_importance.nlargest(15, 'classification_importance')
 
-        fig = go.Figure()
         fig.add_trace(go.Bar(
-            x=top_clf['classification_importance'],
             y=top_clf['feature'],
+            x=top_clf['classification_importance'],
             orientation='h',
-            marker=dict(color='#1f77b4')
+            marker=dict(
+                color=top_clf['classification_importance'],
+                colorscale='Blues',
+                showscale=False
+            ),
+            name='Classification'
         ))
+
         fig.update_layout(
-            xaxis_title="Importance Score",
+            title="Top Features for Risk Classification",
+            xaxis_title="Importance",
             yaxis_title="",
             height=500,
             showlegend=False
         )
-        st.plotly_chart(fig, width="stretch")
+        fig.update_yaxes(autorange="reversed")
+
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.markdown("### Regression (Return Prediction)")
+        # Regression importance
+        fig = go.Figure()
         top_reg = feature_importance.nlargest(15, 'regression_importance')
 
-        fig = go.Figure()
         fig.add_trace(go.Bar(
-            x=top_reg['regression_importance'],
             y=top_reg['feature'],
+            x=top_reg['regression_importance'],
             orientation='h',
-            marker=dict(color='#ff7f0e')
+            marker=dict(
+                color=top_reg['regression_importance'],
+                colorscale='Oranges',
+                showscale=False
+            ),
+            name='Regression'
         ))
+
         fig.update_layout(
-            xaxis_title="Importance Score",
+            title="Top Features for Return Prediction",
+            xaxis_title="Importance",
             yaxis_title="",
             height=500,
             showlegend=False
         )
-        st.plotly_chart(fig, width="stretch")
+        fig.update_yaxes(autorange="reversed")
+
+        st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
 
-    # Feature descriptions
-    st.markdown("## Feature Descriptions")
+    # Combined importance
+    st.markdown("## 📊 Combined Feature Importance")
 
-    feature_descriptions = {
-        "OfferPrice": "The initial price at which shares are offered to the public",
-        "gross_proceeds": "Total amount raised in the IPO (offer price × shares offered)",
-        "log_proceeds": "Natural logarithm of gross proceeds (reduces skewness)",
-        "firm_age": "Age of the company at the time of IPO (years)",
-        "vc_backed": "Whether the company is backed by venture capital (1=Yes, 0=No)",
-        "is_tech": "Whether the company is in the technology sector",
-        "is_healthcare": "Whether the company is in the healthcare/biotech sector",
-        "revenue": "Company's revenue before IPO (in millions)",
-        "log_revenue": "Natural logarithm of revenue",
-        "assets": "Company's total assets before IPO (in millions)",
-        "log_assets": "Natural logarithm of assets",
-        "price_revision": "Change from filed price range midpoint to final offer price",
-        "NumberofAmendments": "Number of amendments to the registration statement",
-        "days_filing_to_offer": "Days between filing and offering date",
-        "is_young_firm": "Whether firm is less than 5 years old",
-        "pct_secondary": "Percentage of shares sold by existing shareholders (vs new shares)",
-        "proceeds_to_assets": "Ratio of IPO proceeds to total assets",
-        "revenue_to_assets": "Ratio of revenue to assets (profitability indicator)",
-        "tech_x_vc": "Interaction: Technology company backed by VC",
-        "healthcare_x_vc": "Interaction: Healthcare company backed by VC",
-        "young_x_vc": "Interaction: Young firm backed by VC"
-    }
+    feature_importance['avg_importance'] = (
+        feature_importance['classification_importance'] +
+        feature_importance['regression_importance']
+    ) / 2
 
-    selected_feature = st.selectbox("Select a feature to learn more", sorted(feature_descriptions.keys()))
+    top_combined = feature_importance.nlargest(20, 'avg_importance')
 
-    if selected_feature in feature_descriptions:
-        st.info(f"**{selected_feature}**: {feature_descriptions[selected_feature]}")
+    fig = go.Figure()
 
-        # Show statistics for this feature if it exists in test data
-        if selected_feature in test_preds.columns:
-            st.markdown("### Feature Statistics")
-            col1, col2, col3 = st.columns(3)
+    fig.add_trace(go.Bar(
+        name='Classification',
+        y=top_combined['feature'],
+        x=top_combined['classification_importance'],
+        orientation='h',
+        marker=dict(color='steelblue')
+    ))
 
-            with col1:
-                st.metric("Mean", f"{test_preds[selected_feature].mean():.2f}")
-            with col2:
-                st.metric("Median", f"{test_preds[selected_feature].median():.2f}")
-            with col3:
-                st.metric("Std Dev", f"{test_preds[selected_feature].std():.2f}")
+    fig.add_trace(go.Bar(
+        name='Regression',
+        y=top_combined['feature'],
+        x=top_combined['regression_importance'],
+        orientation='h',
+        marker=dict(color='coral')
+    ))
 
-    # Full feature importance table
-    with st.expander("View All Feature Importances"):
-        st.dataframe(feature_importance, width="stretch", height=400)
+    fig.update_layout(
+        title="Top 20 Features: Classification vs Regression",
+        xaxis_title="Importance",
+        yaxis_title="",
+        barmode='group',
+        height=600,
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    fig.update_yaxes(autorange="reversed")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("---")
+
+    # Feature insights
+    st.markdown("## 💡 Key Insights")
+
+    st.markdown("""
+    The most important features for predicting IPO outcomes include:
+    
+    **Deal Structure:**
+    - Price revision from filing range (strong signal of demand)
+    - Offer price and gross proceeds
+    - Share structure (primary vs secondary)
+    
+    **Firm Characteristics:**
+    - Firm age (younger firms = higher volatility)
+    - Financial metrics (revenue, assets)
+    - VC-backing status
+    
+    **Market Timing:**
+    - Hot market periods (1995-2000, 2013+)
+    - Crisis periods (2001-2002, 2008-2009)
+    - Seasonal effects (quarter, month)
+    
+    **Interaction Effects:**
+    - Technology + VC-backed
+    - Young firm + VC-backed
+    - Large offer + established firm
+    """)
+
+    # Full table
+    with st.expander("View All Feature Importance"):
+        st.dataframe(
+            feature_importance[['feature', 'classification_importance', 'regression_importance', 'avg_importance']].sort_values('avg_importance', ascending=False),
+            use_container_width=True
+        )
 
 # ============================================================================
 # PAGE 5: IPO SANDBOX
 # ============================================================================
 elif page == "IPO Sandbox":
-    st.title("IPO Sandbox")
-    st.markdown("### Create Custom IPO Scenarios and Get Predictions")
+    st.title("🧪 IPO Sandbox: Create Your Scenario")
+    st.markdown("### Build a Custom IPO and See Model Predictions")
 
     st.markdown("---")
 
-    st.info("💡 Adjust the parameters below to create a custom IPO scenario and see what the model predicts!")
+    st.markdown("""
+    Use the controls below to create a hypothetical IPO scenario. The models will predict 
+    the expected first-day return and risk classification based on your inputs.
+    """)
 
-    # User inputs
-    user_inputs = {}
+    st.markdown("---")
 
+    # Input form
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### Company Characteristics")
+        st.markdown("### 💼 Deal Structure")
 
-        user_inputs['industry'] = st.selectbox(
-            "Industry",
-            ['Technology', 'Healthcare', 'Financial', 'Consumer', 'Industrial',
-             'Energy', 'Materials', 'Other'],
-            help="Primary industry sector"
-        )
+        offer_price = st.slider("Offer Price ($)", 5.0, 50.0, 15.0, 0.5)
+        gross_proceeds = st.slider("Gross Proceeds ($M)", 10.0, 500.0, 50.0, 10.0)
+        price_revision = st.slider("Price Revision (%)", -30.0, 30.0, 0.0, 1.0) / 100
+        primary_pct = st.slider("Primary Shares (%)", 50.0, 100.0, 100.0, 5.0) / 100
 
-        user_inputs['firm_age'] = st.slider(
-            "Firm Age (years)",
-            min_value=0,
-            max_value=50,
-            value=8,
-            step=1,
-            help="Age of the company at IPO"
-        )
+        st.markdown("### 🏢 Firm Characteristics")
 
-        user_inputs['revenue'] = st.number_input(
-            "Annual Revenue ($M)",
-            min_value=0.0,
-            max_value=10000.0,
-            value=100.0,
-            step=10.0,
-            help="Annual revenue in millions"
-        )
-
-        user_inputs['assets'] = st.number_input(
-            "Total Assets ($M)",
-            min_value=0.0,
-            max_value=10000.0,
-            value=150.0,
-            step=10.0,
-            help="Total assets in millions"
-        )
-
-        user_inputs['is_profitable'] = st.checkbox(
-            "Is Profitable",
-            value=True,
-            help="Whether the company is currently profitable"
-        )
-
-        user_inputs['vc_backed'] = st.checkbox(
-            "VC-Backed",
-            value=True,
-            help="Whether backed by venture capital"
-        )
+        firm_age = st.slider("Firm Age (years)", 0.0, 30.0, 7.0, 0.5)
+        revenue = st.slider("Revenue ($M)", 0.0, 500.0, 50.0, 10.0)
+        assets = st.slider("Assets ($M)", 0.0, 500.0, 50.0, 10.0)
 
     with col2:
-        st.markdown("### Offer Details")
+        st.markdown("### 🏆 Quality Indicators")
 
-        user_inputs['OfferPrice'] = st.slider(
-            "Offer Price ($)",
-            min_value=5.0,
-            max_value=100.0,
-            value=15.0,
-            step=1.0,
-            help="Initial offering price per share"
-        )
+        vc_backed = st.selectbox("VC-Backed", ["Yes", "No"])
+        vc_backed_val = 1 if vc_backed == "Yes" else 0
 
-        user_inputs['shares_offered'] = st.number_input(
-            "Shares Offered (millions)",
-            min_value=1.0,
-            max_value=100.0,
-            value=10.0,
-            step=1.0,
-            help="Number of shares offered in millions"
-        ) * 1000000
+        industry = st.selectbox("Industry", ["Technology", "Healthcare", "Financial", "Other"])
 
-        user_inputs['pct_primary'] = st.slider(
-            "Primary Shares (%)",
-            min_value=0,
-            max_value=100,
-            value=85,
-            step=5,
-            help="Percentage of new shares (vs secondary/existing shares)"
-        ) / 100
+        underwriter_rank = st.slider("Underwriter Quality (0-10)", 0, 10, 7)
 
-        user_inputs['NumberofAmendments'] = st.slider(
-            "Number of Amendments",
-            min_value=0,
-            max_value=10,
-            value=3,
-            help="Number of amendments to registration statement"
-        )
+        st.markdown("### 📅 Market Conditions")
 
-        user_inputs['days_filing_to_offer'] = st.slider(
-            "Days from Filing to Offer",
-            min_value=30,
-            max_value=365,
-            value=90,
-            help="Time between filing and offering"
-        )
+        ipo_year = st.slider("IPO Year", 2015, 2025, 2024)
+        ipo_month = st.slider("IPO Month", 1, 12, 6)
 
-        user_inputs['price_revision'] = st.slider(
-            "Price Revision (%)",
-            min_value=-30.0,
-            max_value=30.0,
-            value=0.0,
-            step=1.0,
-            help="Percentage change from initial filing range"
-        ) / 100
+        hot_market = 1 if ipo_year >= 2013 else 0
+        crisis_period = 0
 
     st.markdown("---")
 
-    # Get top features from feature importance
-    if feature_importance is not None and len(feature_importance) > 0:
-        top_10_features = feature_importance.head(10)['feature'].tolist()
-    else:
-        # Default important features if feature_importance is not available
-        top_10_features = ['OfferPrice', 'gross_proceeds', 'vc_backed', 'firm_age',
-                          'is_tech', 'price_revision', 'NumberofAmendments',
-                          'revenue', 'assets', 'is_young_firm']
+    # Create input vector
+    if st.button("🔮 Generate Prediction", type="primary"):
+        # Create feature vector matching training features
+        input_data = {}
 
-    # Calculate derived features
-    user_inputs['gross_proceeds'] = user_inputs['OfferPrice'] * (user_inputs['shares_offered'] / 1000000)
-    user_inputs['log_proceeds'] = np.log(user_inputs['gross_proceeds'] + 1)
-    user_inputs['total_shares_offered'] = user_inputs['shares_offered']
-    user_inputs['log_revenue'] = np.log(user_inputs['revenue'] + 1)
-    user_inputs['log_assets'] = np.log(user_inputs['assets'] + 1)
-    user_inputs['proceeds_to_assets'] = user_inputs['gross_proceeds'] / (user_inputs['assets'] + 1)
-    user_inputs['revenue_to_assets'] = user_inputs['revenue'] / (user_inputs['assets'] + 1)
-    user_inputs['pct_secondary'] = 1 - user_inputs['pct_primary']
+        # Basic features
+        input_data['OfferPrice'] = offer_price
+        input_data['firm_age'] = firm_age
+        input_data['vc_backed'] = vc_backed_val
+        input_data['price_revision'] = price_revision
+        input_data['gross_proceeds'] = gross_proceeds
+        input_data['log_proceeds'] = np.log1p(gross_proceeds)
+        input_data['revenue'] = revenue
+        input_data['log_revenue'] = np.log1p(revenue)
+        input_data['assets'] = assets
+        input_data['log_assets'] = np.log1p(assets)
+        input_data['primary_pct'] = primary_pct
+        input_data['underwriter_rank'] = underwriter_rank
+        input_data['hot_market'] = hot_market
+        input_data['crisis_period'] = crisis_period
+        input_data['ipo_year'] = ipo_year
+        input_data['ipo_month'] = ipo_month
 
-    # Binary indicators
-    user_inputs['is_young_firm'] = 1 if user_inputs['firm_age'] < 5 else 0
-    user_inputs['is_tech'] = 1 if user_inputs['industry'] == 'Technology' else 0
-    user_inputs['is_healthcare'] = 1 if user_inputs['industry'] == 'Healthcare' else 0
-    user_inputs['large_offer'] = 1 if user_inputs['gross_proceeds'] > test_preds['gross_proceeds'].median() else 0
-    user_inputs['high_amendments'] = 1 if user_inputs['NumberofAmendments'] > 3 else 0
-    user_inputs['positive_revision'] = 1 if user_inputs['price_revision'] > 0 else 0
-    user_inputs['ipo_month'] = 6  # Default June
-    user_inputs['ipo_quarter'] = 2  # Default Q2
+        # Derived features
+        input_data['ipo_quarter'] = (ipo_month - 1) // 3 + 1
+        input_data['is_small_offer'] = 1 if gross_proceeds < 25 else 0
+        input_data['is_large_offer'] = 1 if gross_proceeds > 100 else 0
+        input_data['is_very_young'] = 1 if firm_age < 3 else 0
+        input_data['is_young'] = 1 if firm_age < 5 else 0
+        input_data['is_revised_up'] = 1 if price_revision > 0 else 0
+        input_data['is_revised_down'] = 1 if price_revision < 0 else 0
+        input_data['is_not_revised'] = 1 if price_revision == 0 else 0
+        input_data['proceeds_to_assets'] = gross_proceeds / (assets + 1)
+        input_data['revenue_to_assets'] = revenue / (assets + 1)
+        input_data['offer_price_to_proceeds'] = offer_price / (gross_proceeds / 1000 + 1)
 
-    # Interactions
-    user_inputs['tech_x_vc'] = user_inputs['is_tech'] * user_inputs['vc_backed']
-    user_inputs['healthcare_x_vc'] = user_inputs['is_healthcare'] * user_inputs['vc_backed']
-    user_inputs['young_x_vc'] = user_inputs['is_young_firm'] * user_inputs['vc_backed']
-    user_inputs['large_offer_x_tech'] = user_inputs['large_offer'] * user_inputs['is_tech']
+        # Interactions
+        input_data['tech_vc'] = (1 if industry == 'Technology' else 0) * vc_backed_val
+        input_data['young_vc'] = input_data['is_young'] * vc_backed_val
+        input_data['small_young'] = input_data['is_small_offer'] * input_data['is_young']
+        input_data['large_mature'] = input_data['is_large_offer'] * (1 - input_data['is_young'])
+        input_data['vc_revised_up'] = vc_backed_val * input_data['is_revised_up']
+        input_data['tech_hot_market'] = (1 if industry == 'Technology' else 0) * hot_market
 
-    # Industry dummies
-    for ind in ['Healthcare', 'Financial', 'Consumer', 'Industrial', 'Energy',
-                'Materials', 'Other', 'Technology']:
-        user_inputs[f'industry_{ind}'] = 1 if user_inputs['industry'] == ind else 0
+        # Polynomials
+        input_data['firm_age_squared'] = firm_age ** 2
+        input_data['log_proceeds_squared'] = input_data['log_proceeds'] ** 2
 
-    # Prepare feature vector
-    feature_vector = []
-    for col in feature_columns:
-        if col in user_inputs:
-            feature_vector.append(user_inputs[col])
-        else:
-            feature_vector.append(0)  # Default for missing features
+        # Industry dummies
+        input_data['industry_Financial'] = 1 if industry == 'Financial' else 0
+        input_data['industry_Healthcare'] = 1 if industry == 'Healthcare' else 0
+        input_data['industry_Technology'] = 1 if industry == 'Technology' else 0
 
-    feature_vector = np.array(feature_vector).reshape(1, -1)
+        # Create dataframe with correct feature order
+        input_df = pd.DataFrame([input_data])
 
-    # Scale features
-    feature_vector_scaled = scaler.transform(feature_vector)
+        # Ensure all features are present
+        for feat in feature_columns:
+            if feat not in input_df.columns:
+                input_df[feat] = 0
 
-    # Make predictions
-    if st.button("Predict IPO Performance", type="primary"):
+        input_df = input_df[feature_columns]
+
+        # Scale
+        input_scaled = scaler.transform(input_df)
+        input_scaled = np.nan_to_num(input_scaled, nan=0.0)
+
+        # Predict
+        predicted_return = regressor.predict(input_scaled)[0]
+        predicted_risk_proba = classifier.predict_proba(input_scaled)[0, 1]
+        predicted_high_risk = classifier.predict(input_scaled)[0]
+
+        # Display results
         st.markdown("---")
-        st.markdown("## Prediction Results")
+        st.markdown("## 🎯 Prediction Results")
 
-        # Get predictions
-        risk_prob = classifier.predict_proba(feature_vector_scaled)[0][1]
-        predicted_return = regressor.predict(feature_vector_scaled)[0]
-        is_high_risk = risk_prob >= 0.5
-
-        # Display results in columns
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.markdown("### Risk Classification")
-            if is_high_risk:
-                st.error("**HIGH RISK**")
-            else:
-                st.success("**LOW RISK**")
-            st.metric("Risk Probability", f"{risk_prob*100:.1f}%")
+            st.metric(
+                "Predicted First-Day Return",
+                f"{predicted_return*100:.2f}%",
+                delta="Expected performance"
+            )
 
         with col2:
-            st.markdown("### Predicted Return")
-            return_color = "green" if predicted_return >= 0 else "red"
-            st.markdown(f"<h2 style='color: {return_color};'>{predicted_return*100:+.2f}%</h2>",
-                       unsafe_allow_html=True)
-            st.caption("Expected first-day return")
+            st.metric(
+                "Risk Probability",
+                f"{predicted_risk_proba*100:.1f}%",
+                delta="High-risk likelihood"
+            )
 
         with col3:
-            st.markdown("### Confidence Level")
-            confidence = "High" if abs(risk_prob - 0.5) > 0.3 else "Medium" if abs(risk_prob - 0.5) > 0.15 else "Low"
-            st.metric("Model Confidence", confidence)
-            st.caption("Based on probability distance from 50%")
+            risk_label = "High Risk" if predicted_high_risk else "Low Risk"
+            risk_color = "🔴" if predicted_high_risk else "🟢"
+            st.metric(
+                "Risk Classification",
+                f"{risk_color} {risk_label}"
+            )
 
-        # Investment recommendation
+        # Interpretation
         st.markdown("---")
-        st.markdown("### Investment Recommendation")
+        st.markdown("## 💡 Interpretation")
 
-        if not is_high_risk and predicted_return > 0.10:
-            st.success("""
-            **Strong Buy Candidate**
-            - Low risk of negative returns
-            - Predicted return exceeds 10%
-            - Favorable characteristics
-            """)
-        elif not is_high_risk and predicted_return > 0.05:
-            st.info("""
-            **Moderate Buy Candidate**
-            - Low risk classification
-            - Positive expected returns
-            - Consider portfolio allocation limits
-            """)
-        elif is_high_risk and predicted_return > 0:
-            st.warning("""
-            **Cautious Approach Recommended**
-            - High risk classification despite positive expected return
-            - Higher volatility expected
-            - Consider smaller position size
-            """)
+        if predicted_return > 0.15:
+            return_interp = "🚀 Strong positive return expected. This IPO shows characteristics of a potential winner."
+        elif predicted_return > 0.05:
+            return_interp = "📈 Moderate positive return expected. Typical performance for this profile."
+        elif predicted_return > -0.05:
+            return_interp = "➡️ Flat to slightly positive return expected. Average performance."
         else:
-            st.error("""
-            **Avoid**
-            - High risk of negative returns
-            - Unfavorable risk-return profile
-            - Consider waiting for better opportunities
-            """)
+            return_interp = "📉 Negative return expected. This IPO may underperform on day one."
+
+        if predicted_risk_proba > 0.7:
+            risk_interp = "⚠️ High risk of negative performance. Consider avoiding."
+        elif predicted_risk_proba > 0.5:
+            risk_interp = "⚡ Moderate risk level. Careful evaluation recommended."
+        else:
+            risk_interp = "✅ Low risk profile. Relatively safe investment."
+
+        st.info(return_interp)
+        st.info(risk_interp)
 
         # Key factors
-        st.markdown("---")
-        st.markdown("### Key Factors Influencing This Prediction")
+        st.markdown("### 🔑 Key Factors Influencing This Prediction")
 
-        st.write("**Most Influential Features for This IPO:**")
+        factors = []
+        if vc_backed_val:
+            factors.append("✓ VC-backed (typically positive)")
+        if price_revision > 0.1:
+            factors.append("✓ Strong upward price revision (high demand signal)")
+        elif price_revision < -0.1:
+            factors.append("⚠️ Downward price revision (weak demand)")
+        if firm_age < 5:
+            factors.append("⚠️ Young firm (higher volatility)")
+        if gross_proceeds > 100:
+            factors.append("✓ Large offering (more stability)")
+        if industry == "Technology":
+            factors.append("⚡ Technology sector (higher returns, higher risk)")
+        if hot_market:
+            factors.append("✓ Hot market period (favorable conditions)")
 
-        # Display user's values for top features
-        important_factors = []
-        for feature in top_10_features[:5]:
-            if feature in user_inputs:
-                value = user_inputs[feature]
-                if isinstance(value, (int, float)):
-                    if abs(value) < 1 and value != 0:
-                        important_factors.append(f"- **{feature}**: {value:.3f}")
-                    elif abs(value) > 1000000:
-                        important_factors.append(f"- **{feature}**: {value/1e6:.1f}M")
-                    else:
-                        important_factors.append(f"- **{feature}**: {value:.2f}")
-                else:
-                    important_factors.append(f"- **{feature}**: {value}")
+        for factor in factors:
+            st.markdown(f"- {factor}")
 
-        for factor in important_factors:
-            st.write(factor)
-
-        # Scenario summary
-        st.markdown("---")
-        st.markdown("### Your IPO Scenario Summary")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.write("**Company Profile:**")
-            st.write(f"- Industry: {user_inputs['industry']}")
-            st.write(f"- Firm Age: {user_inputs['firm_age']} years")
-            st.write(f"- Revenue: ${user_inputs['revenue']:.1f}M")
-            st.write(f"- Assets: ${user_inputs['assets']:.1f}M")
-            st.write(f"- VC-Backed: {'Yes' if user_inputs['vc_backed'] else 'No'}")
-
-        with col2:
-            st.write("**Offering Details:**")
-            st.write(f"- Offer Price: ${user_inputs['OfferPrice']:.2f}")
-            st.write(f"- Gross Proceeds: ${user_inputs['gross_proceeds']:.1f}M")
-            st.write(f"- Shares Offered: {user_inputs['shares_offered']/1e6:.1f}M")
-            st.write(f"- Price Revision: {user_inputs['price_revision']*100:+.1f}%")
-            st.write(f"- Amendments: {user_inputs['NumberofAmendments']}")
-
-# Footer
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center; color: #666;'>
-    <p><strong>IPO Risk Prediction Dashboard</strong></p>
-    <p>Created by Logan Wesselt, Julian Tashjian, Dylan Bollinger | JLD Inc. LLC. Partners</p>
-    <p>FIN 377 Final Project | Machine Learning for IPO Analysis using Real Data</p>
-    <p>Data Source: SDC Platinum IPO Database</p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("*Dashboard built with Streamlit | Data from SDC Platinum | FIN 377 Final Project*")
