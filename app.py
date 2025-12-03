@@ -37,49 +37,204 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# Check file existence helper
+def check_files_exist():
+    """Check which required files exist and return status"""
+    required_files = {
+        'Models': {
+            'best_classifier.pkl': 'models/best_classifier.pkl',
+            'best_regressor.pkl': 'models/best_regressor.pkl',
+            'scaler.pkl': 'models/scaler.pkl',
+            'feature_columns.pkl': 'models/feature_columns.pkl',
+            'metadata.pkl': 'models/metadata.pkl'
+        },
+        'Data': {
+            'test_predictions.csv': 'data/final/test_predictions.csv',
+            'classification_results.csv': 'data/final/classification_results.csv',
+            'regression_results.csv': 'data/final/regression_results.csv',
+            'strategy_summary.csv': 'data/final/strategy_summary.csv',
+            'feature_importance.csv': 'data/final/feature_importance.csv'
+        }
+    }
+
+    missing_files = {'Models': [], 'Data': []}
+
+    for category, files in required_files.items():
+        for name, path in files.items():
+            if not os.path.exists(path):
+                missing_files[category].append((name, path))
+
+    return missing_files
+
 # Load models and data
 @st.cache_resource
 def load_models():
     """Load trained models and preprocessing objects"""
-    try:
-        with open('models/best_classifier.pkl', 'rb') as f:
-            classifier = pickle.load(f)
-        with open('models/best_regressor.pkl', 'rb') as f:
-            regressor = pickle.load(f)
-        with open('models/scaler.pkl', 'rb') as f:
-            scaler = pickle.load(f)
-        with open('models/feature_columns.pkl', 'rb') as f:
-            feature_columns = pickle.load(f)
-        with open('models/metadata.pkl', 'rb') as f:
-            metadata = pickle.load(f)
+    models_to_load = {
+        'classifier': 'models/best_classifier.pkl',
+        'regressor': 'models/best_regressor.pkl',
+        'scaler': 'models/scaler.pkl',
+        'feature_columns': 'models/feature_columns.pkl',
+        'metadata': 'models/metadata.pkl'
+    }
 
-        return classifier, regressor, scaler, feature_columns, metadata
-    except FileNotFoundError:
-        st.error("Model files not found. Please run all Jupyter notebooks (Parts 1-5) first to train models.")
+    loaded = {}
+    missing = []
+
+    for name, path in models_to_load.items():
+        if os.path.exists(path):
+            with open(path, 'rb') as f:
+                loaded[name] = pickle.load(f)
+        else:
+            missing.append(path)
+            loaded[name] = None
+
+    if missing:
+        st.error("❌ **Missing Model Files:**")
+        for path in missing:
+            st.error(f"   • {path}")
+        st.info("""
+        **To generate these files:**
+        1. Run Part 3 notebook (Classification) → generates `best_classifier.pkl`, `scaler.pkl`, `feature_columns.pkl`
+        2. Run Part 4 notebook (Regression) → generates `best_regressor.pkl`
+        3. Run Part 5 notebook (Strategy Testing) → generates `metadata.pkl`
+        """)
         return None, None, None, None, None
+
+    return loaded['classifier'], loaded['regressor'], loaded['scaler'], loaded['feature_columns'], loaded['metadata']
 
 @st.cache_data
 def load_data():
     """Load test predictions and results"""
-    try:
-        test_preds = pd.read_csv('data/final/test_predictions.csv')
-        clf_results = pd.read_csv('data/final/classification_results.csv')
-        reg_results = pd.read_csv('data/final/regression_results.csv')
-        strategy_results = pd.read_csv('data/final/strategy_summary.csv')
-        feature_importance = pd.read_csv('data/final/feature_importance.csv')
+    data_to_load = {
+        'test_preds': 'data/final/test_predictions.csv',
+        'clf_results': 'data/final/classification_results.csv',
+        'reg_results': 'data/final/regression_results.csv',
+        'strategy_results': 'data/final/strategy_summary.csv',
+        'feature_importance': 'data/final/feature_importance.csv'
+    }
 
-        return test_preds, clf_results, reg_results, strategy_results, feature_importance
-    except FileNotFoundError:
-        st.error("Data files not found. Please run all Jupyter notebooks (Parts 1-5) first.")
+    loaded = {}
+    missing = []
+
+    for name, path in data_to_load.items():
+        if os.path.exists(path):
+            loaded[name] = pd.read_csv(path)
+        else:
+            missing.append(path)
+            loaded[name] = None
+
+    if missing:
+        st.error("❌ **Missing Data Files:**")
+        for path in missing:
+            st.error(f"   • {path}")
+        st.info("""
+        **To generate these files:**
+        1. Run Part 3 notebook (Classification) → generates `classification_results.csv`
+        2. Run Part 4 notebook (Regression) → generates `regression_results.csv`
+        3. Run Part 5 notebook (Strategy Testing) → generates:
+           - `test_predictions.csv`
+           - `strategy_summary.csv`
+           - `feature_importance.csv`
+        """)
         return None, None, None, None, None
+
+    return loaded['test_preds'], loaded['clf_results'], loaded['reg_results'], loaded['strategy_results'], loaded['feature_importance']
+
+# Initial file check - show detailed status
+missing_files = check_files_exist()
+
+if any(missing_files['Models']) or any(missing_files['Data']):
+    st.title("⚙️ Dashboard Setup Required")
+    st.markdown("---")
+
+    st.error("### Missing Required Files")
+    st.markdown("""
+    This dashboard requires data and model files generated from the Jupyter notebooks. 
+    Please complete the following steps:
+    """)
+
+    if missing_files['Models']:
+        st.markdown("#### 🔴 Missing Model Files:")
+        for name, path in missing_files['Models']:
+            st.markdown(f"- `{path}`")
+
+    if missing_files['Data']:
+        st.markdown("#### 🔴 Missing Data Files:")
+        for name, path in missing_files['Data']:
+            st.markdown(f"- `{path}`")
+
+    st.markdown("---")
+    st.markdown("### 📚 Complete Notebook Workflow")
+
+    st.markdown("""
+    **Run these notebooks in order on Google Colab:**
+    
+    1. **Part 1: Data Loading & Basic Processing**
+       - Loads SDC IPO data
+       - Creates target variables
+       - Generates: `data/processed/processed_ipo_data.csv`
+    
+    2. **Part 2: Feature Engineering**
+       - Adds derived features and interactions
+       - Generates: `data/processed/engineered_ipo_data.csv`, `feature_columns.pkl`
+    
+    3. **Part 3: Classification Models** ⭐
+       - Trains risk prediction models
+       - Generates: `classification_results.csv`, `best_classifier.pkl`, `scaler.pkl`, `feature_columns.pkl`
+    
+    4. **Part 4: Regression Models** ⭐
+       - Trains return prediction models
+       - Generates: `regression_results.csv`, `best_regressor.pkl`
+    
+    5. **Part 5: Strategy Testing & Dashboard Prep** ⭐⭐
+       - Creates investment strategies
+       - Generates: `test_predictions.csv`, `strategy_summary.csv`, `feature_importance.csv`, `metadata.pkl`
+    
+    **After running notebooks:**
+```
+    1. Download files from Google Drive:
+       /content/drive/MyDrive/Final Project Folder FIN 377/
+    
+    2. Copy to your local repo:
+       - data/final/*.csv  → your-repo/data/final/
+       - models/*.pkl      → your-repo/models/
+    
+    3. Verify structure:
+       your-repo/
+       ├── data/
+       │   └── final/
+       │       ├── test_predictions.csv
+       │       ├── classification_results.csv
+       │       ├── regression_results.csv
+       │       ├── strategy_summary.csv
+       │       └── feature_importance.csv
+       ├── models/
+       │   ├── best_classifier.pkl
+       │   ├── best_regressor.pkl
+       │   ├── scaler.pkl
+       │   ├── feature_columns.pkl
+       │   └── metadata.pkl
+       └── app.py
+```
+    """)
+
+    st.markdown("---")
+    st.info("💡 **Tip:** Make sure to create the `data/final/` and `models/` folders in your repository before copying files.")
+
+    st.stop()
 
 # Load everything
 classifier, regressor, scaler, feature_columns, metadata = load_models()
 test_preds, clf_results, reg_results, strategy_results, feature_importance = load_data()
 
-# Check if data loaded successfully
+# Final check
 if classifier is None or test_preds is None:
+    st.error("Failed to load required files. Please check the error messages above.")
     st.stop()
+
+# Success message
+st.sidebar.success("✅ All files loaded successfully!")
 
 # Sidebar
 st.sidebar.title("Navigation")
