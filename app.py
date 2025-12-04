@@ -840,32 +840,6 @@ elif page == "Methodology":
     retraining models.
     """)
 
-    st.markdown("---")
-
-    # References
-    st.markdown("## 9. References and Data Sources")
-
-    st.markdown("""
-    **Primary Data Source:**
-    - Securities Data Corporation (SDC) Platinum IPO Database
-    - Accessed via institutional subscription
-    - Coverage: U.S. initial public offerings, 1980-2017
-
-    **Methodological References:**
-    - Cross-validation: Hastie, T., Tibshirani, R., & Friedman, J. (2009). 
-      *The Elements of Statistical Learning*. Springer.
-    - SMOTE: Chawla, N. V., et al. (2002). "SMOTE: Synthetic Minority Over-sampling Technique." 
-      *Journal of Artificial Intelligence Research*, 16, 321-357.
-    - ROC Analysis: Fawcett, T. (2006). "An introduction to ROC analysis." 
-      *Pattern Recognition Letters*, 27(8), 861-874.
-
-    **IPO Research Literature:**
-    - Ritter, J. R. (1991). "The long-run performance of initial public offerings." 
-      *The Journal of Finance*, 46(1), 3-27.
-    - Loughran, T., & Ritter, J. R. (2004). "Why has IPO underpricing changed over time?" 
-      *Financial Management*, 33(3), 5-37.
-    """)
-
 # ============================================================================
 # PAGE 2: HOME & IPO SEARCH
 # ============================================================================
