@@ -1671,19 +1671,51 @@ elif page == "IPO Sandbox":
 
         st.markdown("### 📅 Market Conditions")
 
-        ipo_year = st.slider("IPO Year", 1980, 2025, 2024)
+        ipo_year = st.slider("IPO Year", 2015, 2035, 2024,
+                             help="Select any year for prediction (model trained on 1980-2017 data)")
         ipo_month = st.slider("IPO Month", 1, 12, 6)
 
-        # Hot market: 1995-2000 tech boom OR 2013+ (low rates + unicorn era)
-        hot_market = 1 if ((ipo_year >= 1995 and ipo_year <= 2000) or ipo_year >= 2013) else 0
-        # Crisis periods: 2001-2002 dot-com bust OR 2008-2009 financial crisis
-        crisis_period = 1 if ((ipo_year >= 2001 and ipo_year <= 2002) or (ipo_year >= 2008 and ipo_year <= 2009)) else 0
+        # Auto-calculate based on historical patterns
+        auto_hot_market = 1 if ((ipo_year >= 1995 and ipo_year <= 2000) or ipo_year >= 2013) else 0
 
-        # Display market condition indicators
-        if hot_market:
-            st.info("📊 Hot Market Period Detected (favorable IPO conditions)")
-        if crisis_period:
-            st.warning("⚠️ Crisis Period Detected (challenging market environment)")
+        # For future years, show warning and let user override
+        if ipo_year > 2025:
+            st.warning("""
+                    ⚠️ **Future Prediction Mode**: For years beyond 2025, market conditions are unknown. 
+                    The 'Hot Market' indicator depends on factors like Fed policy, IPO volume, and investor 
+                    sentiment that cannot be predicted by the model. Please manually specify expected conditions below.
+                    """)
+
+            hot_market = st.selectbox(
+                "Hot Market Period?",
+                options=[1, 0],
+                format_func=lambda
+                    x: "Yes - Favorable IPO conditions expected" if x == 1 else "No - Normal/unfavorable conditions",
+                index=auto_hot_market,
+                help="Hot markets (1995-2000, 2013-2021) had high IPO volume, strong returns, low interest rates"
+            )
+        else:
+            # For historical/recent years, use known patterns
+            hot_market = auto_hot_market
+            if hot_market:
+                st.info("📊 Hot Market Period (based on historical data: 1995-2000, 2013+)")
+
+        # Crisis periods (only defined for historical data)
+        if ipo_year <= 2025:
+            crisis_period = 1 if ((ipo_year >= 2001 and ipo_year <= 2002) or
+                                  (ipo_year >= 2008 and ipo_year <= 2009) or
+                                  (ipo_year >= 2020 and ipo_year <= 2021)) else 0
+            if crisis_period:
+                st.warning("⚠️ Crisis Period Detected (dot-com bust, financial crisis, or COVID-19)")
+        else:
+            # For future years, let user specify
+            crisis_period = st.selectbox(
+                "Economic Crisis Period?",
+                options=[0, 1],
+                format_func=lambda x: "Yes - Economic downturn/crisis" if x == 1 else "No - Normal conditions",
+                index=0,
+                help="Crisis periods (2001-2002, 2008-2009, 2020-2021) had poor IPO performance"
+            )
 
     st.markdown("---")
 
