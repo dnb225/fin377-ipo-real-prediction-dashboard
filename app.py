@@ -634,12 +634,6 @@ elif page == "Model Performance":
 
     st.markdown("---")
 
-    st.markdown("---")
-
-    st.markdown("---")
-        
-    st.markdown("---")
-
     # Regression Results
     st.markdown("## Regression Models (Return Prediction)")
 
