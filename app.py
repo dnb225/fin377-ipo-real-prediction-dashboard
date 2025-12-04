@@ -1694,6 +1694,17 @@ elif page == "IPO Sandbox":
                 index=auto_hot_market,
                 help="Hot markets (1995-2000, 2013-2021) had high IPO volume, strong returns, low interest rates"
             )
+                with st.expander("ℹ️ What Makes a 'Hot Market' for IPOs?"):
+                    st.markdown("""
+                            Historical hot markets (1995-2000, 2013-2021) shared these characteristics:
+                            - **Low interest rates** (cheap capital, high valuations)
+                            - **High IPO volume** (many companies going public)
+                            - **Strong stock market performance** (investor appetite for risk)
+                            - **Tech/growth sector enthusiasm** (narrative-driven investing)
+                            - **Abundant venture capital** (well-funded startups)
+
+                            For future years, you must assess whether these conditions are likely to hold.
+                            """)
         else:
             # For historical/recent years, use known patterns
             hot_market = auto_hot_market
