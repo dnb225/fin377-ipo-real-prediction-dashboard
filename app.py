@@ -1674,8 +1674,10 @@ elif page == "IPO Sandbox":
         ipo_year = st.slider("IPO Year", 2015, 2025, 2024)
         ipo_month = st.slider("IPO Month", 1, 12, 6)
 
-        hot_market = 1 if ipo_year >= 2013 else 0
-        crisis_period = 0
+        # Hot market: 1995-2000 tech boom OR 2013+ (low rates + unicorn era)
+        hot_market = 1 if ((ipo_year >= 1995 and ipo_year <= 2000) or ipo_year >= 2013) else 0
+        # Crisis periods: 2001-2002 dot-com bust OR 2008-2009 financial crisis
+        crisis_period = 1 if ((ipo_year >= 2001 and ipo_year <= 2002) or (ipo_year >= 2008 and ipo_year <= 2009)) else 0
 
     st.markdown("---")
 
@@ -1758,10 +1760,22 @@ elif page == "IPO Sandbox":
         col1, col2, col3 = st.columns(3)
 
         with col1:
+            # Conditional delta based on return sign
+            if predicted_return > 0:
+                delta_text = "Expected outperformance"
+                delta_color = "normal"  # Green
+            elif predicted_return > -0.05:
+                delta_text = "Modest expected return"
+                delta_color = "off"  # Gray
+            else:
+                delta_text = "Expected underperformance"
+                delta_color = "inverse"  # Red
+
             st.metric(
                 "Predicted First-Day Return",
-                f"{predicted_return*100:.2f}%",
-                delta="Expected performance"
+                f"{predicted_return * 100:.2f}%",
+                delta=delta_text,
+                delta_color=delta_color
             )
 
         with col2:
