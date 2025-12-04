@@ -41,186 +41,195 @@ st.markdown("""
 def check_files_exist():
     """Check which required files exist and return status"""
     required_files = {
-        'Models': {
-            'best_classifier.pkl': 'models/best_classifier.pkl',
-            'best_regressor.pkl': 'models/best_regressor.pkl',
-            'scaler.pkl': 'models/scaler.pkl',
-            'feature_columns.pkl': 'models/feature_columns.pkl',
-            'metadata.pkl': 'models/metadata.pkl'
-        },
-        'Data': {
-            'test_predictions.csv': 'data/final/test_predictions.csv',
-            'classification_results.csv': 'data/final/classification_results.csv',
-            'regression_results.csv': 'data/final/regression_results.csv',
-            'strategy_summary.csv': 'data/final/strategy_summary.csv',
-            'feature_importance.csv': 'data/final/feature_importance.csv'
-        }
+        'Models': [
+            'models/best_classifier.pkl',
+            'models/best_regressor.pkl',
+            'models/scaler.pkl',
+            'models/feature_columns.pkl',
+            'models/metadata.pkl'
+        ],
+        'Data': [
+            'data/final/test_predictions.csv',
+            'data/final/classification_results.csv',
+            'data/final/regression_results.csv',
+            'data/final/strategy_summary.csv',
+            'data/final/feature_importance.csv'
+        ]
     }
 
     missing_files = {'Models': [], 'Data': []}
+    existing_files = {'Models': [], 'Data': []}
 
     for category, files in required_files.items():
-        for name, path in files.items():
-            if not os.path.exists(path):
-                missing_files[category].append((name, path))
+        for path in files:
+            if os.path.exists(path):
+                existing_files[category].append(path)
+            else:
+                missing_files[category].append(path)
 
-    return missing_files
+    return missing_files, existing_files
 
 # Load models and data
 @st.cache_resource
 def load_models():
     """Load trained models and preprocessing objects"""
-    models_to_load = {
-        'classifier': 'models/best_classifier.pkl',
-        'regressor': 'models/best_regressor.pkl',
-        'scaler': 'models/scaler.pkl',
-        'feature_columns': 'models/feature_columns.pkl',
-        'metadata': 'models/metadata.pkl'
-    }
+    try:
+        with open('models/best_classifier.pkl', 'rb') as f:
+            classifier = pickle.load(f)
+        with open('models/best_regressor.pkl', 'rb') as f:
+            regressor = pickle.load(f)
+        with open('models/scaler.pkl', 'rb') as f:
+            scaler = pickle.load(f)
+        with open('models/feature_columns.pkl', 'rb') as f:
+            feature_columns = pickle.load(f)
+        with open('models/metadata.pkl', 'rb') as f:
+            metadata = pickle.load(f)
 
-    loaded = {}
-    missing = []
-
-    for name, path in models_to_load.items():
-        if os.path.exists(path):
-            with open(path, 'rb') as f:
-                loaded[name] = pickle.load(f)
-        else:
-            missing.append(path)
-            loaded[name] = None
-
-    if missing:
-        st.error("❌ **Missing Model Files:**")
-        for path in missing:
-            st.error(f"   • {path}")
-        st.info("""
-        **To generate these files:**
-        1. Run Part 3 notebook (Classification) → generates `best_classifier.pkl`, `scaler.pkl`, `feature_columns.pkl`
-        2. Run Part 4 notebook (Regression) → generates `best_regressor.pkl`
-        3. Run Part 5 notebook (Strategy Testing) → generates `metadata.pkl`
-        """)
+        return classifier, regressor, scaler, feature_columns, metadata
+    except FileNotFoundError as e:
+        st.error(f"Model file not found: {e}")
         return None, None, None, None, None
-
-    return loaded['classifier'], loaded['regressor'], loaded['scaler'], loaded['feature_columns'], loaded['metadata']
+    except Exception as e:
+        st.error(f"Error loading models: {e}")
+        return None, None, None, None, None
 
 @st.cache_data
 def load_data():
     """Load test predictions and results"""
-    data_to_load = {
-        'test_preds': 'data/final/test_predictions.csv',
-        'clf_results': 'data/final/classification_results.csv',
-        'reg_results': 'data/final/regression_results.csv',
-        'strategy_results': 'data/final/strategy_summary.csv',
-        'feature_importance': 'data/final/feature_importance.csv'
-    }
+    try:
+        test_preds = pd.read_csv('data/final/test_predictions.csv')
+        clf_results = pd.read_csv('data/final/classification_results.csv')
+        reg_results = pd.read_csv('data/final/regression_results.csv')
+        strategy_results = pd.read_csv('data/final/strategy_summary.csv')
+        feature_importance = pd.read_csv('data/final/feature_importance.csv')
 
-    loaded = {}
-    missing = []
-
-    for name, path in data_to_load.items():
-        if os.path.exists(path):
-            loaded[name] = pd.read_csv(path)
-        else:
-            missing.append(path)
-            loaded[name] = None
-
-    if missing:
-        st.error("❌ **Missing Data Files:**")
-        for path in missing:
-            st.error(f"   • {path}")
-        st.info("""
-        **To generate these files:**
-        1. Run Part 3 notebook (Classification) → generates `classification_results.csv`
-        2. Run Part 4 notebook (Regression) → generates `regression_results.csv`
-        3. Run Part 5 notebook (Strategy Testing) → generates:
-           - `test_predictions.csv`
-           - `strategy_summary.csv`
-           - `feature_importance.csv`
-        """)
+        return test_preds, clf_results, reg_results, strategy_results, feature_importance
+    except FileNotFoundError as e:
+        st.error(f"Data file not found: {e}")
+        return None, None, None, None, None
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
         return None, None, None, None, None
 
-    return loaded['test_preds'], loaded['clf_results'], loaded['reg_results'], loaded['strategy_results'], loaded['feature_importance']
-
 # Initial file check - show detailed status
-missing_files = check_files_exist()
+missing_files, existing_files = check_files_exist()
 
 if any(missing_files['Models']) or any(missing_files['Data']):
     st.title("⚙️ Dashboard Setup Required")
     st.markdown("---")
 
-    st.error("### Missing Required Files")
-    st.markdown("""
-    This dashboard requires data and model files generated from the Jupyter notebooks. 
-    Please complete the following steps:
-    """)
+    # Show current directory for debugging
+    current_dir = os.getcwd()
+    st.info(f"📁 **Current directory:** `{current_dir}`")
+
+    # Show what exists
+    if existing_files['Models'] or existing_files['Data']:
+        st.success("### ✅ Files Found:")
+        if existing_files['Models']:
+            st.markdown("**Models:**")
+            for path in existing_files['Models']:
+                st.markdown(f"- ✓ `{path}`")
+        if existing_files['Data']:
+            st.markdown("**Data:**")
+            for path in existing_files['Data']:
+                st.markdown(f"- ✓ `{path}`")
+        st.markdown("---")
+
+    # Show what's missing
+    st.error("### ❌ Missing Required Files:")
 
     if missing_files['Models']:
-        st.markdown("#### 🔴 Missing Model Files:")
-        for name, path in missing_files['Models']:
-            st.markdown(f"- `{path}`")
+        st.markdown("**Missing Models:**")
+        for path in missing_files['Models']:
+            st.markdown(f"- ✗ `{path}`")
 
     if missing_files['Data']:
-        st.markdown("#### 🔴 Missing Data Files:")
-        for name, path in missing_files['Data']:
-            st.markdown(f"- `{path}`")
+        st.markdown("**Missing Data:**")
+        for path in missing_files['Data']:
+            st.markdown(f"- ✗ `{path}`")
 
     st.markdown("---")
-    st.markdown("### 📚 Complete Notebook Workflow")
+
+    # Instructions
+    st.markdown("### 📋 Setup Instructions")
 
     st.markdown("""
-    **Run these notebooks in order on Google Colab:**
-    
-    1. **Part 1: Data Loading & Basic Processing**
-       - Loads SDC IPO data
-       - Creates target variables
-       - Generates: `data/processed/processed_ipo_data.csv`
-    
-    2. **Part 2: Feature Engineering**
-       - Adds derived features and interactions
-       - Generates: `data/processed/engineered_ipo_data.csv`, `feature_columns.pkl`
-    
-    3. **Part 3: Classification Models** ⭐
-       - Trains risk prediction models
-       - Generates: `classification_results.csv`, `best_classifier.pkl`, `scaler.pkl`, `feature_columns.pkl`
-    
-    4. **Part 4: Regression Models** ⭐
-       - Trains return prediction models
-       - Generates: `regression_results.csv`, `best_regressor.pkl`
-    
-    5. **Part 5: Strategy Testing & Dashboard Prep** ⭐⭐
-       - Creates investment strategies
-       - Generates: `test_predictions.csv`, `strategy_summary.csv`, `feature_importance.csv`, `metadata.pkl`
-    
-    **After running notebooks:**
+    **Your repo structure should look like this:**
 ```
-    1. Download files from Google Drive:
-       /content/drive/MyDrive/Final Project Folder FIN 377/
-    
-    2. Copy to your local repo:
-       - data/final/*.csv  → your-repo/data/final/
-       - models/*.pkl      → your-repo/models/
-    
-    3. Verify structure:
-       your-repo/
-       ├── data/
-       │   └── final/
-       │       ├── test_predictions.csv
-       │       ├── classification_results.csv
-       │       ├── regression_results.csv
-       │       ├── strategy_summary.csv
-       │       └── feature_importance.csv
-       ├── models/
-       │   ├── best_classifier.pkl
-       │   ├── best_regressor.pkl
-       │   ├── scaler.pkl
-       │   ├── feature_columns.pkl
-       │   └── metadata.pkl
-       └── app.py
+    fin377-ipo-real-prediction-dashboard/
+    ├── app.py
+    ├── data/
+    │   └── final/          ← Create this folder!
+    │       ├── test_predictions.csv
+    │       ├── classification_results.csv
+    │       ├── regression_results.csv
+    │       ├── strategy_summary.csv
+    │       └── feature_importance.csv
+    ├── models/
+    │   ├── best_classifier.pkl
+    │   ├── best_regressor.pkl
+    │   ├── scaler.pkl
+    │   ├── feature_columns.pkl
+    │   └── metadata.pkl
+    └── requirements.txt
 ```
+    
+    **Steps to fix:**
+    
+    1. **Run all 5 Jupyter notebooks on Google Colab** (Parts 1-5)
+    
+    2. **Download files from Google Drive:**
+       - Path: `/content/drive/MyDrive/Final Project Folder FIN 377/`
+       - Download `data/final/` folder
+       - Download `models/` folder
+    
+    3. **Copy to your local repo:**
+       - Create `data/final/` folder in your repo if it doesn't exist
+       - Copy all CSV files → `fin377-ipo-real-prediction-dashboard/data/final/`
+       - Copy all PKL files → `fin377-ipo-real-prediction-dashboard/models/`
+    
+    4. **Verify file structure:**
+       - Check that files are in the correct subdirectories
+       - Make sure `data/final/` exists (not just `data/`)
+    
+    5. **Refresh this page**
     """)
 
     st.markdown("---")
-    st.info("💡 **Tip:** Make sure to create the `data/final/` and `models/` folders in your repository before copying files.")
+
+    # Debugging helper
+    with st.expander("🔍 Show directory contents (for debugging)"):
+        st.markdown("**Contents of current directory:**")
+        try:
+            items = os.listdir('.')
+            for item in sorted(items):
+                item_type = "📁" if os.path.isdir(item) else "📄"
+                st.text(f"{item_type} {item}")
+        except Exception as e:
+            st.error(f"Cannot list directory: {e}")
+
+        st.markdown("**Contents of data/ folder:**")
+        try:
+            if os.path.exists('data'):
+                items = os.listdir('data')
+                for item in sorted(items):
+                    item_type = "📁" if os.path.isdir(f'data/{item}') else "📄"
+                    st.text(f"{item_type} data/{item}")
+            else:
+                st.warning("data/ folder does not exist")
+        except Exception as e:
+            st.error(f"Cannot list data/: {e}")
+
+        st.markdown("**Contents of models/ folder:**")
+        try:
+            if os.path.exists('models'):
+                items = os.listdir('models')
+                for item in sorted(items):
+                    st.text(f"📄 models/{item}")
+            else:
+                st.warning("models/ folder does not exist")
+        except Exception as e:
+            st.error(f"Cannot list models/: {e}")
 
     st.stop()
 
@@ -302,7 +311,7 @@ if page == "Introduction":
     st.markdown("## 📊 Key Findings")
 
     if clf_results is not None and len(clf_results) > 0:
-        best_auc = clf_results['Validation AUC'].max()
+        best_auc = clf_results['Test AUC'].max()  # ✅ CORRECTED
 
         if best_auc >= 0.75:
             perf_desc = "strong discriminatory power"
@@ -319,9 +328,9 @@ if page == "Introduction":
 
         st.markdown(f"""
         **{perf_icon} Classification Performance:** The model shows {perf_desc} for identifying 
-        high-risk IPOs (AUC: {best_auc:.3f}).
+        high-risk IPOs (Test AUC: {best_auc:.3f}).
         
-        **📈 Data Source:** Analysis based on {len(test_preds):,} IPOs from the SDC Platinum database 
+        **📈 Data Source:** Analysis based on {len(test_preds):,} test set IPOs from the SDC Platinum database 
         spanning {metadata.get('date_range', '1980-2017')}.
         
         **💡 Investment Strategies:** ML-driven investment strategies demonstrate improved risk-adjusted 
@@ -346,7 +355,7 @@ if page == "Introduction":
         - XGBoost
         - LightGBM
         
-        **Metric:** AUC-ROC Score
+        **Metric:** AUC-ROC Score (Test Set)
         
         **Best Model:** {0}
         """.format(clf_results.iloc[0]['Model'] if clf_results is not None else "N/A"))
@@ -364,7 +373,7 @@ if page == "Introduction":
         - XGBoost
         - LightGBM
         
-        **Metrics:** MAE, RMSE, R²
+        **Metrics:** MAE, RMSE, R² (Test Set)
         
         **Best Model:** {0}
         """.format(reg_results.iloc[0]['Model'] if reg_results is not None else "N/A"))
@@ -562,11 +571,11 @@ elif page == "Home & IPO Search":
         st.warning("No IPOs match your search criteria.")
 
 # ============================================================================
-# PAGE 2: MODEL PERFORMANCE
+# PAGE 2: MODEL PERFORMANCE (WITH ROC CURVE)
 # ============================================================================
 elif page == "Model Performance":
     st.title("🎯 Model Performance Analysis")
-    st.markdown("### Detailed Evaluation of ML Models")
+    st.markdown("### Detailed Evaluation of ML Models on Test Set")
 
     st.markdown("---")
 
@@ -579,20 +588,20 @@ elif page == "Model Performance":
         # Plot model comparison
         fig = go.Figure()
         fig.add_trace(go.Bar(
-            x=clf_results['Validation AUC'],
+            x=clf_results['Test AUC'],  # ✅ CORRECTED
             y=clf_results['Model'],
             orientation='h',
             marker=dict(
-                color=clf_results['Validation AUC'],
+                color=clf_results['Test AUC'],
                 colorscale='Viridis',
                 showscale=False,
                 line=dict(color='white', width=1)
             ),
-            text=[f"{x:.3f}" for x in clf_results['Validation AUC']],
+            text=[f"{x:.3f}" for x in clf_results['Test AUC']],
             textposition='outside'
         ))
         fig.update_layout(
-            title="Classification Model Performance (AUC-ROC)",
+            title="Classification Model Performance (AUC-ROC on Test Set)",
             xaxis_title="AUC Score (Higher is Better)",
             yaxis_title="",
             height=400,
@@ -606,10 +615,10 @@ elif page == "Model Performance":
         st.markdown("### 🏆 Best Model")
         best_clf = clf_results.iloc[0]
         st.metric("Model", best_clf['Model'])
-        st.metric("Validation AUC", f"{best_clf['Validation AUC']:.3f}")
+        st.metric("Test AUC", f"{best_clf['Test AUC']:.3f}")  # ✅ CORRECTED
 
         # Interpretation
-        auc = best_clf['Validation AUC']
+        auc = best_clf['Test AUC']
         if auc >= 0.75:
             st.success("✅ Excellent discriminatory power")
         elif auc >= 0.65:
@@ -625,6 +634,109 @@ elif page == "Model Performance":
 
     st.markdown("---")
 
+    # ROC CURVE VISUALIZATION (NEW)
+    st.markdown("## 📈 ROC Curve Analysis")
+    st.markdown("*Receiver Operating Characteristic (ROC) curves show the trade-off between true positive rate and false positive rate*")
+
+    # Generate ROC curve data
+    from sklearn.metrics import roc_curve, auc
+
+    # Get test set data
+    # Note: We need to recreate predictions here since we don't save them
+    # This uses the loaded models
+
+    if 'high_risk' in test_preds.columns and 'risk_probability' in test_preds.columns:
+        y_true = test_preds['high_risk'].values
+        y_scores = test_preds['risk_probability'].values
+
+        # Calculate ROC curve
+        fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+        roc_auc = auc(fpr, tpr)
+
+        # Create ROC curve plot
+        fig_roc = go.Figure()
+
+        # ROC curve
+        fig_roc.add_trace(go.Scatter(
+            x=fpr,
+            y=tpr,
+            mode='lines',
+            name=f'Best Model (AUC = {roc_auc:.3f})',
+            line=dict(color='blue', width=3)
+        ))
+
+        # Random classifier line
+        fig_roc.add_trace(go.Scatter(
+            x=[0, 1],
+            y=[0, 1],
+            mode='lines',
+            name='Random Classifier (AUC = 0.500)',
+            line=dict(color='red', width=2, dash='dash')
+        ))
+
+        # Shading under ROC curve
+        fig_roc.add_trace(go.Scatter(
+            x=fpr,
+            y=tpr,
+            fill='tozeroy',
+            fillcolor='rgba(0, 100, 255, 0.2)',
+            line=dict(color='rgba(255,255,255,0)'),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+
+        fig_roc.update_layout(
+            title=f"ROC Curve - {best_clf['Model']}",
+            xaxis_title="False Positive Rate",
+            yaxis_title="True Positive Rate",
+            height=500,
+            showlegend=True,
+            legend=dict(x=0.6, y=0.1),
+            plot_bgcolor='rgba(240,240,240,0.5)',
+            hovermode='closest'
+        )
+
+        fig_roc.update_xaxes(range=[0, 1], constrain='domain')
+        fig_roc.update_yaxes(range=[0, 1], scaleanchor="x", scaleratio=1)
+
+        st.plotly_chart(fig_roc, use_container_width=True)
+
+        # Interpretation
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("AUC Score", f"{roc_auc:.3f}")
+        with col2:
+            # Find optimal threshold (Youden's index)
+            optimal_idx = np.argmax(tpr - fpr)
+            optimal_threshold = thresholds[optimal_idx]
+            st.metric("Optimal Threshold", f"{optimal_threshold:.3f}")
+        with col3:
+            sensitivity = tpr[optimal_idx]
+            specificity = 1 - fpr[optimal_idx]
+            st.metric("Sensitivity @ Optimal", f"{sensitivity:.3f}")
+
+        with st.expander("📚 Understanding the ROC Curve"):
+            st.markdown("""
+            **What is an ROC Curve?**
+            - Shows model performance across all classification thresholds
+            - X-axis: False Positive Rate (predicting high-risk when actually low-risk)
+            - Y-axis: True Positive Rate (correctly identifying high-risk IPOs)
+            
+            **Interpreting AUC:**
+            - AUC = 1.0: Perfect classifier
+            - AUC = 0.5: Random guessing (the diagonal line)
+            - AUC < 0.5: Worse than random (classifier is backwards)
+            
+            **For Investment Decisions:**
+            - Higher TPR = Catching more risky IPOs (good!)
+            - Lower FPR = Not incorrectly flagging safe IPOs (good!)
+            - The curve shows the trade-off between these two goals
+            """)
+    else:
+        st.warning("ROC curve data not available. Ensure test predictions include 'high_risk' and 'risk_probability' columns.")
+
+    st.markdown("---")
+
     # Regression Results
     st.markdown("## Regression Models (Return Prediction)")
 
@@ -634,21 +746,21 @@ elif page == "Model Performance":
         # Plot model comparison
         fig = go.Figure()
         fig.add_trace(go.Bar(
-            x=reg_results['Validation MAE'],
+            x=reg_results['Test MAE'],  # ✅ CORRECTED
             y=reg_results['Model'],
             orientation='h',
             marker=dict(
-                color=reg_results['Validation MAE'],
+                color=reg_results['Test MAE'],
                 colorscale='Reds',
                 reversescale=True,
                 showscale=False,
                 line=dict(color='white', width=1)
             ),
-            text=[f"{x:.4f}" for x in reg_results['Validation MAE']],
+            text=[f"{x:.4f}" for x in reg_results['Test MAE']],
             textposition='outside'
         ))
         fig.update_layout(
-            title="Regression Model Performance (MAE)",
+            title="Regression Model Performance (MAE on Test Set)",
             xaxis_title="Mean Absolute Error (Lower is Better)",
             yaxis_title="",
             height=400,
@@ -661,9 +773,9 @@ elif page == "Model Performance":
         st.markdown("### 🏆 Best Model")
         best_reg = reg_results.iloc[0]
         st.metric("Model", best_reg['Model'])
-        st.metric("Validation MAE", f"{best_reg['Validation MAE']:.4f}")
-        if 'Validation R²' in best_reg:
-            st.metric("R² Score", f"{best_reg['Validation R²']:.4f}")
+        st.metric("Test MAE", f"{best_reg['Test MAE']:.4f}")  # ✅ CORRECTED
+        if 'Test R²' in best_reg:
+            st.metric("R² Score", f"{best_reg['Test R²']:.4f}")  # ✅ CORRECTED
 
     # Full results table
     with st.expander("View All Regression Results"):
@@ -696,7 +808,7 @@ elif page == "Model Performance":
     ))
 
     fig.update_layout(
-        title="Actual vs Predicted Returns (Sample)",
+        title="Actual vs Predicted Returns (Sample of 10 IPOs)",
         xaxis_title="IPO Index",
         yaxis_title="First-Day Return (%)",
         height=400,
