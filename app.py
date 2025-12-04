@@ -1143,6 +1143,18 @@ elif page == "Investment Strategies":
 
     st.markdown("---")
 
+    # Check for missing strategies and show disclaimer
+    expected_strategies = ['Buy All', 'Avoid High Risk', 'Top 25% Returns', 'Combined Strategy', 'High Confidence']
+    actual_strategies = strategy_results['Strategy'].tolist()
+    missing_strategies = [s for s in expected_strategies if s not in actual_strategies]
+
+    if missing_strategies:
+        st.info(f"""
+        **Note:** The following strategy did not qualify any IPOs in the test set and is not shown: 
+        {', '.join(missing_strategies)}. This indicates the model did not generate predictions 
+        meeting the strategy's criteria (e.g., extreme confidence levels).
+        """)
+        
     # Calculate true best strategy based on composite score
     strategy_results_copy = strategy_results.copy()
     strategy_results_copy['composite_score'] = (
