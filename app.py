@@ -1694,24 +1694,27 @@ elif page == "IPO Sandbox":
                 index=auto_hot_market,
                 help="Hot markets (1995-2000, 2013-2021) had high IPO volume, strong returns, low interest rates"
             )
-                with st.expander("ℹ️ What Makes a 'Hot Market' for IPOs?"):
-                    st.markdown("""
-                            Historical hot markets (1995-2000, 2013-2021) shared these characteristics:
-                            - **Low interest rates** (cheap capital, high valuations)
-                            - **High IPO volume** (many companies going public)
-                            - **Strong stock market performance** (investor appetite for risk)
-                            - **Tech/growth sector enthusiasm** (narrative-driven investing)
-                            - **Abundant venture capital** (well-funded startups)
 
-                            For future years, you must assess whether these conditions are likely to hold.
-                            """)
+            # ADD ENHANCEMENT HERE (inside the if ipo_year > 2025 block)
+            with st.expander("ℹ️ What Makes a 'Hot Market' for IPOs?"):
+                st.markdown("""
+                        Historical hot markets (1995-2000, 2013-2021) shared these characteristics:
+                        - **Low interest rates** (cheap capital, high valuations)
+                        - **High IPO volume** (many companies going public)
+                        - **Strong stock market performance** (investor appetite for risk)
+                        - **Tech/growth sector enthusiasm** (narrative-driven investing)
+                        - **Abundant venture capital** (well-funded startups)
+
+                        For future years, you must assess whether these conditions are likely to hold.
+                        """)
+
         else:
             # For historical/recent years, use known patterns
             hot_market = auto_hot_market
             if hot_market:
                 st.info("📊 Hot Market Period (based on historical data: 1995-2000, 2013+)")
 
-        # Crisis periods (only defined for historical data)
+        # Crisis periods section continues below...
         if ipo_year <= 2025:
             crisis_period = 1 if ((ipo_year >= 2001 and ipo_year <= 2002) or
                                   (ipo_year >= 2008 and ipo_year <= 2009) or
@@ -1719,7 +1722,6 @@ elif page == "IPO Sandbox":
             if crisis_period:
                 st.warning("⚠️ Crisis Period Detected (dot-com bust, financial crisis, or COVID-19)")
         else:
-            # For future years, let user specify
             crisis_period = st.selectbox(
                 "Economic Crisis Period?",
                 options=[0, 1],
