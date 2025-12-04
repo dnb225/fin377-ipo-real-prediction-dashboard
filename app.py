@@ -546,61 +546,89 @@ elif page == "Methodology":
     # Model Development
     st.markdown("## 4. Model Development Process")
 
+    st.markdown("### 4.1 Data Partitioning")
+
     st.markdown("""
-    **4.1 Data Partitioning**
+        We employ an 80-20 train-test split with stratification on the target variable for 
+        classification tasks:
+        """)
 
-    We employ an 80-20 train-test split with stratification on the target variable for 
-    classification tasks:
+    col1, col2 = st.columns(2)
 
-    - **Training Set:** 80% of data (~1,012 IPOs)
-      - Used for model fitting and hyperparameter tuning
-      - Cross-validation performed within this set
-    - **Test Set:** 20% of data (~253 IPOs)
-      - Held out entirely until final evaluation
-      - Represents true out-of-sample performance
-      - Simulates "future" IPOs unseen during model development
+    with col1:
+        st.markdown("""
+            **Training Set:** 80% of data (~1,012 IPOs)
+            - Used for model fitting and hyperparameter tuning
+            - Cross-validation performed within this set
+            """)
 
-    The test set is never used for training, validation, or hyperparameter selection, ensuring 
-    unbiased performance estimates.
+    with col2:
+        st.markdown("""
+            **Test Set:** 20% of data (~253 IPOs)
+            - Held out entirely until final evaluation
+            - Represents true out-of-sample performance
+            - Simulates "future" IPOs unseen during model development
+            """)
 
-    **4.2 Cross-Validation Strategy**
+    st.markdown("""
+        The test set is never used for training, validation, or hyperparameter selection, ensuring 
+        unbiased performance estimates.
+        """)
 
-    Rather than creating a separate validation set (which would reduce training data to 60%), 
-    we use k-fold cross-validation for hyperparameter tuning:
+    st.markdown("### 4.2 Cross-Validation Strategy")
 
-    - **Method:** 5-fold stratified cross-validation
-    - **Process:** Training set is divided into 5 folds
-      - Each fold serves as validation set once
-      - Model trains on remaining 4 folds
-      - Performance averaged across all 5 iterations
-    - **Advantage:** Uses 100% of training data for both training and validation
-      - Each observation appears in validation fold exactly once
-      - More stable hyperparameter selection with limited data
+    st.markdown("""
+        Rather than creating a separate validation set (which would reduce training data to 60%), 
+        we use k-fold cross-validation for hyperparameter tuning.
+        """)
 
-    This approach is standard practice in machine learning for moderate-sized datasets and 
-    is superior to single validation splits for datasets under 10,000 observations.
+    st.markdown("""
+        **Method:** 5-fold stratified cross-validation
 
-    **4.3 Feature Preprocessing**
+        **Process:**
+        - Training set is divided into 5 folds
+        - Each fold serves as validation set once
+        - Model trains on remaining 4 folds
+        - Performance averaged across all 5 iterations
 
-    All features undergo standardization using scikit-learn's StandardScaler:
-```
-    z = (x - μ) / σ
-```
+        **Advantage:**
+        - Uses 100% of training data for both training and validation
+        - Each observation appears in validation fold exactly once
+        - More stable hyperparameter selection with limited data
+        """)
 
-    where μ is the mean and σ is the standard deviation computed on the training set only. 
-    The test set is transformed using training set statistics to prevent data leakage.
+    st.info("""
+        This approach is standard practice in machine learning for moderate-sized datasets and 
+        is superior to single validation splits for datasets under 10,000 observations.
+        """)
 
-    For classification models, we apply SMOTE (Synthetic Minority Over-sampling Technique) 
-    to address class imbalance:
-    - **Parameters:** k_neighbors=3, random_state=42
-    - **Applied to:** Training set only, after train-test split
-    - **Effect:** Balances high-risk and low-risk classes through synthetic sample generation
+    st.markdown("### 4.3 Feature Preprocessing")
 
-    Missing values are imputed using median strategy before scaling to ensure numerical 
-    stability in downstream modeling.
-    """)
+    st.markdown("""
+        All features undergo standardization using scikit-learn's StandardScaler:
+        """)
 
-    st.markdown("---")
+    st.latex(r"z = \frac{x - \mu}{\sigma}")
+
+    st.markdown("""
+        where μ is the mean and σ is the standard deviation computed on the training set only. 
+        The test set is transformed using training set statistics to prevent data leakage.
+        """)
+
+    st.markdown("""
+        **SMOTE for Class Imbalance:**
+
+        For classification models, we apply SMOTE (Synthetic Minority Over-sampling Technique) 
+        to address class imbalance:
+        - Parameters: k_neighbors=3, random_state=42
+        - Applied to: Training set only, after train-test split
+        - Effect: Balances high-risk and low-risk classes through synthetic sample generation
+
+        **Missing Value Imputation:**
+
+        Missing values are imputed using median strategy before scaling to ensure numerical 
+        stability in downstream modeling.
+        """)
 
     # Model Selection
     st.markdown("## 5. Model Selection and Hyperparameter Tuning")
