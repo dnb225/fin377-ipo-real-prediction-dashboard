@@ -457,38 +457,51 @@ elif page == "Methodology":
     st.markdown("## 2. Target Variable Definition")
 
     st.markdown("""
-    We define two related target variables for our dual modeling approach:
+        We define two related target variables for our dual modeling approach:
+        """)
 
-    **2.1 First-Day Return (Continuous Target)**
+    st.markdown("### 2.1 First-Day Return (Continuous Target)")
 
-    The first-day return measures the percentage price change from the offer price to the 
-    closing price on the first trading day:
-```
-    first_day_return = (StockPrice_1DayAfter - OfferPrice) / OfferPrice
-```
+    st.markdown("""
+        The first-day return measures the percentage price change from the offer price to the 
+        closing price on the first trading day:
+        """)
 
-    **Descriptive Statistics:**
-    - Mean: 27.12%
-    - Median: 11.54%
-    - Standard Deviation: 60.17%
-    - Range: -100% to +570%
+    st.latex(
+        r"\text{first\_day\_return} = \frac{\text{StockPrice}_{1\text{DayAfter}} - \text{OfferPrice}}{\text{OfferPrice}}")
 
-    The high mean relative to median indicates positive skewness, with occasional extreme 
-    positive returns driving up the average. The standard deviation of 60% reflects substantial 
-    heterogeneity in IPO performance.
+    st.markdown("**Descriptive Statistics:**")
 
-    **2.2 High-Risk Classification (Binary Target)**
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Mean", "27.12%")
+    with col2:
+        st.metric("Median", "11.54%")
+    with col3:
+        st.metric("Std Dev", "60.17%")
+    with col4:
+        st.metric("Range", "-100% to +570%")
 
-    We define high-risk IPOs as those falling in the bottom quartile of returns or experiencing 
-    negative performance:
-```
-    high_risk = (first_day_return ≤ 25th_percentile) OR (first_day_return < 0)
-```
+    st.markdown("""
+        The high mean relative to median indicates positive skewness, with occasional extreme 
+        positive returns driving up the average. The standard deviation of 60% reflects substantial 
+        heterogeneity in IPO performance.
+        """)
 
-    This definition captures approximately 25-30% of IPOs as high-risk, providing a meaningful 
-    class balance for classification modeling. High-risk IPOs are of particular interest to 
-    investors seeking to avoid significant underperformance.
-    """)
+    st.markdown("### 2.2 High-Risk Classification (Binary Target)")
+
+    st.markdown("""
+        We define high-risk IPOs as those falling in the bottom quartile of returns or experiencing 
+        negative performance:
+        """)
+
+    st.latex(r"\text{high\_risk} = (\text{first\_day\_return} \leq P_{25}) \text{ OR } (\text{first\_day\_return} < 0)")
+
+    st.markdown("""
+        This definition captures approximately 25-30% of IPOs as high-risk, providing a meaningful 
+        class balance for classification modeling. High-risk IPOs are of particular interest to 
+        investors seeking to avoid significant underperformance.
+        """)
 
     st.markdown("---")
 
