@@ -1,4 +1,4 @@
-Model,Validation AUC
+Model,Test AUC
 Random Forest,0.6799498746867167
 Logistic Regression,0.6734335839598997
 LightGBM,0.6583959899749373
