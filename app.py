@@ -765,58 +765,6 @@ elif page == "Model Performance":
 
         st.plotly_chart(fig_roc, use_container_width=True)
 
-        # Model comparison (SINGLE INSTANCE)
-        st.markdown("---")
-        st.markdown("### 📊 Model Performance Comparison")
-
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            # Bar chart of all model AUCs
-            fig_compare = go.Figure()
-
-            fig_compare.add_trace(go.Bar(
-                x=clf_results['Test AUC'],
-                y=clf_results['Model'],
-                orientation='h',
-                marker=dict(
-                    color=clf_results['Test AUC'],
-                    colorscale='Blues',
-                    showscale=False,
-                    line=dict(color='white', width=1)
-                ),
-                text=[f"{x:.3f}" for x in clf_results['Test AUC']],
-                textposition='outside'
-            ))
-
-            fig_compare.add_vline(
-                x=0.5,
-                line_dash="dash",
-                line_color="red",
-                annotation_text="Random",
-                annotation_position="top"
-            )
-
-            fig_compare.update_layout(
-                title="All Models - Test AUC Comparison",
-                xaxis_title="AUC Score",
-                yaxis_title="",
-                height=300,
-                showlegend=False,
-                plot_bgcolor='rgba(240,240,240,0.5)',
-                xaxis=dict(range=[0.4, 0.8])
-            )
-
-            st.plotly_chart(fig_compare, use_container_width=True)
-
-        with col2:
-            st.markdown("**Performance Ranking:**")
-            for idx, row in clf_results.iterrows():
-                rank_emoji = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else "📊"
-                st.markdown(f"{rank_emoji} **{row['Model']}**")
-                st.markdown(f"   AUC: {row['Test AUC']:.3f}")
-                st.markdown("")
-
         # Educational content
         with st.expander("📚 Understanding ROC Curves"):
             st.markdown("""
