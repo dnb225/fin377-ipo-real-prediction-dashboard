@@ -249,7 +249,7 @@ st.sidebar.success("✅ All files loaded successfully!")
 st.sidebar.title("Navigation")
 page = st.sidebar.radio(
     "Select Page",
-    ["Introduction", "Home & IPO Search", "Model Performance", "Investment Strategies", "Feature Analysis", "IPO Sandbox"]
+    ["Introduction", "Methodology", "Home & IPO Search", "Model Performance", "Investment Strategies", "Feature Analysis", "IPO Sandbox"]
 )
 
 st.sidebar.markdown("---")
@@ -415,14 +415,418 @@ if page == "Introduction":
 
     st.markdown("""
     1. **Home & IPO Search:** Explore individual IPO predictions and search by company
-    2. **Model Performance:** View detailed model evaluation metrics and comparisons
-    3. **Investment Strategies:** Compare ML-driven investment strategies against baseline
-    4. **Feature Analysis:** Understand which features drive predictions
-    5. **IPO Sandbox:** Create hypothetical IPO scenarios and see predictions
+    2. **Methodology:** View the behind-the-scenes process behind this notebook
+    3. **Model Performance:** View detailed model evaluation metrics and comparisons
+    4. **Investment Strategies:** Compare ML-driven investment strategies against baseline
+    5. **Feature Analysis:** Understand which features drive predictions
+    6. **IPO Sandbox:** Create hypothetical IPO scenarios and see predictions
+    """)
+# ============================================================================
+# PAGE 1: METHODOLOGY
+# ============================================================================
+elif page == "Methodology":
+    st.title("Methodology")
+    st.markdown("### Detailed Research Approach and Data Processing Pipeline")
+
+    st.markdown("---")
+
+    # Data Source
+    st.markdown("## 1. Data Source")
+
+    st.markdown("""
+    This analysis uses data from the Securities Data Corporation (SDC) Platinum database, 
+    which provides comprehensive coverage of initial public offerings in the United States. 
+    The SDC Platinum IPO database is widely regarded as the authoritative source for IPO research 
+    and is commonly used in academic finance studies.
+
+    **Dataset Characteristics:**
+    - **Time Period:** 1980-2017 (37 years)
+    - **Total IPOs:** 1,472 offerings
+    - **Usable Observations:** 1,265 IPOs with complete first-day return data
+    - **Missing Data:** 207 IPOs excluded due to missing first-day price information
+
+    **Data Collection:**
+    The raw data was extracted in Stata format (.dta) and includes comprehensive pre-IPO 
+    information that would have been available to investors before the first trading day. 
+    This temporal constraint ensures that our predictive models do not suffer from look-ahead bias.
+    """)
+
+    st.markdown("---")
+
+    # Target Variables
+    st.markdown("## 2. Target Variable Definition")
+
+    st.markdown("""
+    We define two related target variables for our dual modeling approach:
+
+    **2.1 First-Day Return (Continuous Target)**
+
+    The first-day return measures the percentage price change from the offer price to the 
+    closing price on the first trading day:
+```
+    first_day_return = (StockPrice_1DayAfter - OfferPrice) / OfferPrice
+```
+
+    **Descriptive Statistics:**
+    - Mean: 27.12%
+    - Median: 11.54%
+    - Standard Deviation: 60.17%
+    - Range: -100% to +570%
+
+    The high mean relative to median indicates positive skewness, with occasional extreme 
+    positive returns driving up the average. The standard deviation of 60% reflects substantial 
+    heterogeneity in IPO performance.
+
+    **2.2 High-Risk Classification (Binary Target)**
+
+    We define high-risk IPOs as those falling in the bottom quartile of returns or experiencing 
+    negative performance:
+```
+    high_risk = (first_day_return ≤ 25th_percentile) OR (first_day_return < 0)
+```
+
+    This definition captures approximately 25-30% of IPOs as high-risk, providing a meaningful 
+    class balance for classification modeling. High-risk IPOs are of particular interest to 
+    investors seeking to avoid significant underperformance.
+    """)
+
+    st.markdown("---")
+
+    # Feature Engineering
+    st.markdown("## 3. Feature Engineering")
+
+    st.markdown("""
+    We construct approximately 40 features organized into five categories, all derived from 
+    information available prior to the first trading day.
+
+    **3.1 Deal Structure Variables**
+    - Offer price per share
+    - Gross proceeds (total capital raised)
+    - Price revision: (OfferPrice - FilingRangeMidpoint) / FilingRangeMidpoint
+    - Primary vs. secondary share composition
+    - Shares offered
+
+    **3.2 Firm Characteristics**
+    - Firm age: calculated from founding date to IPO date in years
+    - Financial metrics: LTM revenue, total assets
+    - Industry classification: derived from primary SIC code
+      - Technology: SIC codes 35, 36, 48, 73
+      - Financial Services: SIC codes 60-67
+      - Healthcare: SIC codes 28, 38
+      - Other: all remaining codes
+
+    **3.3 Quality Indicators**
+    - VC-backed status: binary indicator for venture capital backing
+    - Underwriter quality: proxy measure based on filing amendment count
+      - underwriter_rank = 10 - min(NumberOfAmendments, 10)
+      - Fewer amendments suggest higher-quality underwriting
+
+    **3.4 Market Conditions**
+    - IPO timing: year, quarter, month
+    - Hot market indicator: periods of elevated IPO activity (1995-2000, 2013+)
+    - Crisis period indicator: major market downturns (2001-2002, 2008-2009)
+
+    **3.5 Derived Features**
+    - Logarithmic transformations: log(1 + proceeds), log(1 + revenue), log(1 + assets)
+    - Financial ratios: proceeds-to-assets, revenue-to-assets
+    - Categorical binning: firm age categories, offer size categories
+    - Interaction terms: technology × VC-backed, young firm × VC-backed, 
+      large offer × established firm, VC-backed × revised up, 
+      technology × hot market
+    - Polynomial features: firm_age², log(proceeds)²
+
+    **Missing Data Treatment:**
+    - Continuous variables: median imputation
+    - Price revision: zero imputation (assumes no revision when filing prices unavailable)
+    - Firm age: median imputation, negative values clipped to zero
+    """)
+
+    st.markdown("---")
+
+    # Model Development
+    st.markdown("## 4. Model Development Process")
+
+    st.markdown("""
+    **4.1 Data Partitioning**
+
+    We employ an 80-20 train-test split with stratification on the target variable for 
+    classification tasks:
+
+    - **Training Set:** 80% of data (~1,012 IPOs)
+      - Used for model fitting and hyperparameter tuning
+      - Cross-validation performed within this set
+    - **Test Set:** 20% of data (~253 IPOs)
+      - Held out entirely until final evaluation
+      - Represents true out-of-sample performance
+      - Simulates "future" IPOs unseen during model development
+
+    The test set is never used for training, validation, or hyperparameter selection, ensuring 
+    unbiased performance estimates.
+
+    **4.2 Cross-Validation Strategy**
+
+    Rather than creating a separate validation set (which would reduce training data to 60%), 
+    we use k-fold cross-validation for hyperparameter tuning:
+
+    - **Method:** 5-fold stratified cross-validation
+    - **Process:** Training set is divided into 5 folds
+      - Each fold serves as validation set once
+      - Model trains on remaining 4 folds
+      - Performance averaged across all 5 iterations
+    - **Advantage:** Uses 100% of training data for both training and validation
+      - Each observation appears in validation fold exactly once
+      - More stable hyperparameter selection with limited data
+
+    This approach is standard practice in machine learning for moderate-sized datasets and 
+    is superior to single validation splits for datasets under 10,000 observations.
+
+    **4.3 Feature Preprocessing**
+
+    All features undergo standardization using scikit-learn's StandardScaler:
+```
+    z = (x - μ) / σ
+```
+
+    where μ is the mean and σ is the standard deviation computed on the training set only. 
+    The test set is transformed using training set statistics to prevent data leakage.
+
+    For classification models, we apply SMOTE (Synthetic Minority Over-sampling Technique) 
+    to address class imbalance:
+    - **Parameters:** k_neighbors=3, random_state=42
+    - **Applied to:** Training set only, after train-test split
+    - **Effect:** Balances high-risk and low-risk classes through synthetic sample generation
+
+    Missing values are imputed using median strategy before scaling to ensure numerical 
+    stability in downstream modeling.
+    """)
+
+    st.markdown("---")
+
+    # Model Selection
+    st.markdown("## 5. Model Selection and Hyperparameter Tuning")
+
+    st.markdown("""
+    **5.1 Classification Models (High-Risk Prediction)**
+
+    We evaluate four classification algorithms using GridSearchCV for hyperparameter optimization:
+
+    **Logistic Regression:**
+    - Regularization parameter C: {0.01, 0.1, 1, 10}
+    - Class weighting: {'balanced', None}
+
+    **Random Forest:**
+    - Number of trees: {100, 200}
+    - Maximum depth: {10, 20, None}
+    - Minimum samples per split: {5, 10}
+    - Class weighting: {'balanced', 'balanced_subsample'}
+
+    **XGBoost:**
+    - Maximum depth: {3, 5, 7}
+    - Learning rate: {0.01, 0.1, 0.3}
+    - Number of estimators: {100, 200}
+    - Scale positive weight: {1, 2, 5}
+
+    **LightGBM:**
+    - Number of estimators: 200
+    - Maximum depth: 5
+    - Learning rate: 0.1
+
+    **Evaluation Metric:** Area Under the ROC Curve (AUC-ROC)
+    - Selected for its invariance to class imbalance
+    - Measures discriminatory power across all classification thresholds
+    - Values range from 0.5 (random guessing) to 1.0 (perfect separation)
+
+    **5.2 Regression Models (Return Prediction)**
+
+    We evaluate six regression algorithms:
+
+    **Linear Models:**
+    - Linear Regression (ordinary least squares baseline)
+    - Ridge Regression (α = 1.0)
+
+    **Tree-Based Models:**
+    - Decision Tree (max_depth=10, min_samples_split=10)
+    - Random Forest (n_estimators=200, max_depth=20, min_samples_split=5)
+
+    **Gradient Boosting:**
+    - XGBoost (n_estimators=200, max_depth=5, learning_rate=0.1)
+    - LightGBM (n_estimators=200, max_depth=5, learning_rate=0.1)
+
+    **Evaluation Metrics:**
+    - Mean Absolute Error (MAE): average absolute prediction error
+    - Root Mean Squared Error (RMSE): penalizes large errors more heavily
+    - R² Score: proportion of variance explained by the model
+
+    All hyperparameters are selected based on cross-validated performance on the training set. 
+    The best-performing model for each task is saved for deployment.
+    """)
+
+    st.markdown("---")
+
+    # Evaluation
+    st.markdown("## 6. Model Evaluation")
+
+    st.markdown("""
+    **6.1 Test Set Performance**
+
+    Final model evaluation is conducted exclusively on the held-out test set. This represents 
+    true out-of-sample performance and is the primary metric reported in this dashboard.
+
+    **Performance Interpretation Guidelines:**
+
+    *Classification (AUC-ROC):*
+    - 0.90-1.00: Excellent discriminatory power
+    - 0.80-0.90: Good performance
+    - 0.70-0.80: Fair performance
+    - 0.60-0.70: Weak but above-random performance
+    - 0.50-0.60: Marginal improvement over random guessing
+    - 0.50: No better than random classification
+
+    *Regression (MAE):*
+    - Expressed as decimal (0.15 = 15% absolute error)
+    - Lower values indicate better predictive accuracy
+    - Contextual interpretation depends on return volatility
+
+    **6.2 Investment Strategy Backtesting**
+
+    We implement five investment strategies on the test set:
+
+    1. **Buy All (Baseline):** Invest in all IPOs without selection
+    2. **Avoid High Risk:** Exclude IPOs with predicted risk probability > 0.5
+    3. **Top 25% Returns:** Invest only in IPOs in top quartile of predicted returns
+    4. **Combined Strategy:** Low risk (probability < 0.5) AND above-median predicted return
+    5. **High Confidence:** Extreme predictions only ((risk < 0.3 OR risk > 0.7) AND return > 0)
+
+    **Performance Metrics:**
+    - Average return: mean first-day return
+    - Median return: 50th percentile return
+    - Sharpe ratio: return / standard deviation (risk-adjusted performance)
+    - Portfolio size: number of IPOs selected
+    - High-risk rate: percentage of selected IPOs that were actually high-risk
+
+    Strategies are compared against the baseline to assess value added by machine learning predictions.
+    """)
+
+    st.markdown("---")
+
+    # Limitations
+    st.markdown("## 7. Limitations and Considerations")
+
+    st.markdown("""
+    **7.1 Sample Period**
+
+    Data covers 1980-2017, ending seven years before present. Market dynamics, regulatory 
+    environment, and IPO characteristics may have evolved since 2017. Models trained on 
+    historical data may not fully capture contemporary market conditions.
+
+    **7.2 Survivorship Bias**
+
+    The dataset includes only IPOs that reached market. Withdrawn or postponed offerings 
+    are not captured, potentially biasing the sample toward higher-quality issuers.
+
+    **7.3 Missing Data**
+
+    Approximately 14% of IPOs (207 of 1,472) are excluded due to missing first-day prices. 
+    If missingness is non-random (e.g., poor performers more likely to have missing data), 
+    this could bias results.
+
+    **7.4 Feature Limitations**
+
+    While we incorporate comprehensive pre-IPO information, certain factors that may influence 
+    IPO performance are not captured:
+    - Investor sentiment and market timing beyond crude hot/cold market indicators
+    - Detailed underwriter reputation measures
+    - Prospectus-level textual information
+    - Competitive positioning and market structure
+
+    **7.5 Transaction Costs**
+
+    Investment strategy performance does not account for:
+    - Trading commissions and fees
+    - Bid-ask spreads
+    - Market impact costs
+    - IPO allocation mechanisms (difficulty of obtaining shares in high-demand offerings)
+
+    Real-world implementation would face additional frictions not reflected in backtests.
+
+    **7.6 Model Generalization**
+
+    Test set performance represents expected performance on similar IPOs from the same 
+    time period and market conditions. Performance on future IPOs may differ due to:
+    - Regime changes in market structure
+    - Regulatory modifications
+    - Technological disruption in specific industries
+    - Macroeconomic shifts
+
+    Periodic model retraining on recent data would be advisable for production deployment.
+    """)
+
+    st.markdown("---")
+
+    # Technical Implementation
+    st.markdown("## 8. Technical Implementation")
+
+    st.markdown("""
+    **Software and Libraries:**
+    - Python 3.8+
+    - Data Processing: pandas, numpy
+    - Statistical Analysis: scipy, statsmodels
+    - Machine Learning: scikit-learn, xgboost, lightgbm
+    - Class Balancing: imbalanced-learn (SMOTE)
+    - Data Format Handling: pyreadstat (Stata .dta files)
+    - Visualization: matplotlib, seaborn, plotly
+    - Dashboard: Streamlit
+
+    **Computational Environment:**
+    - Development: Google Colab with Google Drive integration
+    - Deployment: Streamlit Cloud
+
+    **Reproducibility:**
+    - Random seeds fixed at 42 for all stochastic processes
+    - Train-test split uses fixed random_state
+    - Cross-validation folds are stratified and seeded
+    - SMOTE sampling uses fixed random_state
+
+    **Code Organization:**
+    The analysis is structured in five sequential notebooks:
+    1. Data loading and basic processing
+    2. Feature engineering
+    3. Classification model training and evaluation
+    4. Regression model training and evaluation
+    5. Strategy testing and dashboard data preparation
+
+    All intermediate and final results are saved to enable dashboard functionality without 
+    retraining models.
+    """)
+
+    st.markdown("---")
+
+    # References
+    st.markdown("## 9. References and Data Sources")
+
+    st.markdown("""
+    **Primary Data Source:**
+    - Securities Data Corporation (SDC) Platinum IPO Database
+    - Accessed via institutional subscription
+    - Coverage: U.S. initial public offerings, 1980-2017
+
+    **Methodological References:**
+    - Cross-validation: Hastie, T., Tibshirani, R., & Friedman, J. (2009). 
+      *The Elements of Statistical Learning*. Springer.
+    - SMOTE: Chawla, N. V., et al. (2002). "SMOTE: Synthetic Minority Over-sampling Technique." 
+      *Journal of Artificial Intelligence Research*, 16, 321-357.
+    - ROC Analysis: Fawcett, T. (2006). "An introduction to ROC analysis." 
+      *Pattern Recognition Letters*, 27(8), 861-874.
+
+    **IPO Research Literature:**
+    - Ritter, J. R. (1991). "The long-run performance of initial public offerings." 
+      *The Journal of Finance*, 46(1), 3-27.
+    - Loughran, T., & Ritter, J. R. (2004). "Why has IPO underpricing changed over time?" 
+      *Financial Management*, 33(3), 5-37.
     """)
 
 # ============================================================================
-# PAGE 1: HOME & IPO SEARCH
+# PAGE 2: HOME & IPO SEARCH
 # ============================================================================
 elif page == "Home & IPO Search":
     st.title("🏠 Home & IPO Search")
@@ -571,7 +975,7 @@ elif page == "Home & IPO Search":
         st.warning("No IPOs match your search criteria.")
 
 # ============================================================================
-# PAGE 2: MODEL PERFORMANCE (WITH ROC CURVE)
+# PAGE 3: MODEL PERFORMANCE (WITH ROC CURVE)
 # ============================================================================
 elif page == "Model Performance":
     st.title("🎯 Model Performance Analysis")
@@ -716,7 +1120,7 @@ elif page == "Model Performance":
     st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# PAGE 3: INVESTMENT STRATEGIES (ENHANCED)
+# PAGE 4: INVESTMENT STRATEGIES (ENHANCED)
 # ============================================================================
 elif page == "Investment Strategies":
     st.title("💼 Investment Strategy Analysis")
@@ -1045,7 +1449,7 @@ elif page == "Investment Strategies":
                             st.metric("IPOs", f"{int(row['IPOs Invested'])}")
 
 # ============================================================================
-# PAGE 4: FEATURE ANALYSIS
+# PAGE 5: FEATURE ANALYSIS
 # ============================================================================
 elif page == "Feature Analysis":
     st.title("🔬 Feature Importance Analysis")
@@ -1196,7 +1600,7 @@ elif page == "Feature Analysis":
         )
 
 # ============================================================================
-# PAGE 5: IPO SANDBOX
+# PAGE 6: IPO SANDBOX
 # ============================================================================
 elif page == "IPO Sandbox":
     st.title("🧪 IPO Sandbox: Create Your Scenario")
