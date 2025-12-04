@@ -1679,6 +1679,12 @@ elif page == "IPO Sandbox":
         # Crisis periods: 2001-2002 dot-com bust OR 2008-2009 financial crisis
         crisis_period = 1 if ((ipo_year >= 2001 and ipo_year <= 2002) or (ipo_year >= 2008 and ipo_year <= 2009)) else 0
 
+        # Display market condition indicators
+        if hot_market:
+            st.info("📊 Hot Market Period Detected (favorable IPO conditions)")
+        if crisis_period:
+            st.warning("⚠️ Crisis Period Detected (challenging market environment)")
+
     st.markdown("---")
 
     # Create input vector
