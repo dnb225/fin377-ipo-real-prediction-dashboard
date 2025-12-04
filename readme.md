@@ -52,13 +52,6 @@ Investment strategies based on model predictions demonstrate improved risk-adjus
 └── requirements.txt        # Python dependencies
 ```
 
-## Running the Dashboard Locally
-```bash
-git clone https://github.com/YOUR-USERNAME/fin377-ipo-real-prediction-dashboard.git
-cd fin377-ipo-real-prediction-dashboard
-pip install -r requirements.txt
-streamlit run app.py
-```
 
 ## Dashboard Features
 
@@ -99,8 +92,13 @@ streamlit run app.py
 - Securities Data Corporation (SDC) Platinum IPO Database
 
 **Academic Literature:**
-- Ritter, J. R. (1991). The long-run performance of initial public offerings. *The Journal of Finance*, 46(1), 3-27.
-- Loughran, T., & Ritter, J. R. (2004). Why has IPO underpricing changed over time? *Financial Management*, 33(3), 5-37.
+Academic Background on IPO Performance
+ Ritter, J. R. (2024). IPO data spreadsheet. University of Florida. https://site.warrington.ufl.edu/ritter/ipo-data/
+ Ritter, J. R. (1991). The long‐run performance of initial public offerings. The Journal of Finance, 46(1), 3–27.
+Feature & Market Context Sources
+ Loughran, T., & Ritter, J. R. (2004). Why has IPO underpricing changed over time? Financial Management, 33(3), 5–37.
+ Schultz, P. (2003). Pseudo market timing and the long-run underperformance of IPOs. The Journal of Finance, 58(2), 483–517.
+
 
 ## License
 
