@@ -1418,24 +1418,24 @@ elif page == "Investment Strategies":
             "cons": "Includes high-risk IPOs"
         },
         "Avoid High Risk": {
-            "description": "**Risk-averse** - invest only in IPOs with low predicted risk",
+            "description": "**Risk-averse** - invest only in IPOs with low predicted risk (probability < 0.5)",
             "pros": "Reduces downside exposure",
             "cons": "May miss high-return opportunities"
         },
         "Top 25% Returns": {
-            "description": "**Growth-focused** - invest in top quartile predicted returns",
+            "description": "**Growth-focused** - invest in top quartile of predicted returns",
             "pros": "Maximizes potential returns",
             "cons": "Higher risk concentration"
         },
         "Combined Strategy": {
-            "description": "**Balanced** - low risk AND above-median returns",
+            "description": "**Balanced** - low risk (probability < 0.5) AND above-median predicted returns",
             "pros": "Best risk-adjusted returns",
             "cons": "Fewer opportunities"
         },
         "High Confidence": {
-            "description": "**Selective** - invest only with high model confidence",
-            "pros": "High conviction trades",
-            "cons": "Very selective"
+            "description": "**Selective** - invest only when model has extreme confidence (risk < 0.3 OR risk > 0.7) AND positive predicted return",
+            "pros": "High conviction trades with clear signals",
+            "cons": "Very selective, may miss market-wide gains"
         }
     }
 
