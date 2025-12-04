@@ -1671,7 +1671,7 @@ elif page == "IPO Sandbox":
 
         st.markdown("### 📅 Market Conditions")
 
-        ipo_year = st.slider("IPO Year", 2015, 2025, 2024)
+        ipo_year = st.slider("IPO Year", 1980, 2025, 2024)
         ipo_month = st.slider("IPO Month", 1, 12, 6)
 
         # Hot market: 1995-2000 tech boom OR 2013+ (low rates + unicorn era)
