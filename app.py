@@ -636,7 +636,9 @@ elif page == "Model Performance":
 
     st.markdown("---")
 
-    # ROC CURVE VISUALIZATION - RECREATED FROM TEST PREDICTIONS
+    st.markdown("---")
+
+    # ROC CURVE VISUALIZATION
     st.markdown("## 📈 ROC Curve Analysis")
     st.markdown(
         "*Receiver Operating Characteristic (ROC) curves show the trade-off between true positive rate and false positive rate*")
@@ -650,78 +652,100 @@ elif page == "Model Performance":
 
         # Calculate ROC curve for best model
         fpr, tpr, thresholds = roc_curve(y_true, y_scores)
-        roc_auc = auc(fpr, tpr)
 
-        # Get best model name
+        # Get best model info from clf_results (use saved AUC, not recalculated)
         best_model_name = clf_results.iloc[0]['Model']
+        best_model_auc = clf_results.iloc[0]['Test AUC']
 
-        # Create ROC curve plot
+        # Create ROC curve plot with model selector
+        st.markdown("### Select Models to Display:")
+
+        # Model selection checkboxes
+        col1, col2, col3, col4, col5 = st.columns(5)
+
+        show_models = {}
+        with col1:
+            show_models['best'] = st.checkbox(f"{best_model_name}", value=True, key='show_best')
+
+        checkbox_cols = [col2, col3, col4, col5]
+        other_model_idx = 0
+        for idx, row in clf_results.iterrows():
+            if idx > 0 and other_model_idx < 4:  # Skip best model, max 4 others
+                with checkbox_cols[other_model_idx]:
+                    show_models[row['Model']] = st.checkbox(
+                        row['Model'],
+                        value=True,
+                        key=f'show_{row["Model"]}'
+                    )
+                other_model_idx += 1
+
+        # Create figure
         fig_roc = go.Figure()
 
-        # Best model ROC curve (main line)
-        fig_roc.add_trace(go.Scatter(
-            x=fpr,
-            y=tpr,
-            mode='lines',
-            name=f'{best_model_name} (AUC = {roc_auc:.3f})',
-            line=dict(color='blue', width=3),
-            hovertemplate='<b>%{fullData.name}</b><br>' +
-                          'FPR: %{x:.3f}<br>' +
-                          'TPR: %{y:.3f}<br>' +
-                          '<extra></extra>'
-        ))
+        # Add best model's actual ROC curve (if selected)
+        if show_models.get('best', True):
+            fig_roc.add_trace(go.Scatter(
+                x=fpr,
+                y=tpr,
+                mode='lines',
+                name=f'{best_model_name} (AUC = {best_model_auc:.3f})',
+                line=dict(color='rgb(31, 119, 180)', width=4),
+                hovertemplate='<b>%{fullData.name}</b><br>' +
+                              'FPR: %{x:.3f}<br>' +
+                              'TPR: %{y:.3f}<br>' +
+                              '<extra></extra>'
+            ))
 
-        # Shading under ROC curve
-        fig_roc.add_trace(go.Scatter(
-            x=fpr,
-            y=tpr,
-            fill='tozeroy',
-            fillcolor='rgba(0, 100, 255, 0.15)',
-            line=dict(color='rgba(255,255,255,0)'),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
+            # Shading under best model's curve
+            fig_roc.add_trace(go.Scatter(
+                x=fpr,
+                y=tpr,
+                fill='tozeroy',
+                fillcolor='rgba(31, 119, 180, 0.15)',
+                line=dict(color='rgba(255,255,255,0)'),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
 
-        # Random classifier line (diagonal)
+        # Add reference lines for other models (approximate)
+        colors_map = {
+            'Logistic Regression': 'rgb(255, 127, 14)',
+            'Random Forest': 'rgb(31, 119, 180)',
+            'XGBoost': 'rgb(44, 160, 44)',
+            'LightGBM': 'rgb(214, 39, 40)'
+        }
+
+        for idx, row in clf_results.iterrows():
+            if idx > 0:  # Skip best model (already plotted)
+                model_name = row['Model']
+                model_auc = row['Test AUC']
+
+                if show_models.get(model_name, True):
+                    color = colors_map.get(model_name, 'rgb(128, 128, 128)')
+
+                    # Add approximate reference line
+                    fig_roc.add_trace(go.Scatter(
+                        x=[0, 0.5, 1],
+                        y=[0, model_auc, 1],
+                        mode='lines',
+                        name=f'{model_name} (AUC = {model_auc:.3f})',
+                        line=dict(color=color, width=3, dash='dot'),
+                        showlegend=True,
+                        hovertemplate=f'<b>{model_name}</b><br>AUC: {model_auc:.3f}<extra></extra>'
+                    ))
+
+        # Random classifier line (always shown)
         fig_roc.add_trace(go.Scatter(
             x=[0, 1],
             y=[0, 1],
             mode='lines',
             name='Random Classifier (AUC = 0.500)',
-            line=dict(color='black', width=2, dash='dash'),
+            line=dict(color='black', width=3, dash='dash'),
             showlegend=True
         ))
 
-        # Add reference points for other models (if available)
-        if len(clf_results) > 1:
-            # Add horizontal lines at AUC levels for comparison
-            colors_map = {
-                'Logistic Regression': 'rgba(31, 119, 180, 0.3)',
-                'Random Forest': 'rgba(255, 127, 14, 0.3)',
-                'XGBoost': 'rgba(44, 160, 44, 0.3)',
-                'LightGBM': 'rgba(214, 39, 40, 0.3)'
-            }
-
-            for idx, row in clf_results.iterrows():
-                if idx > 0:  # Skip best model (already plotted)
-                    model_name = row['Model']
-                    model_auc = row['Test AUC']
-                    color = colors_map.get(model_name, 'rgba(128, 128, 128, 0.3)')
-
-                    # Add subtle reference line showing other model's AUC performance
-                    # This is approximate - actual ROC curve would differ
-                    fig_roc.add_trace(go.Scatter(
-                        x=[0, 0.5, 1],
-                        y=[0, model_auc, 1],
-                        mode='lines',
-                        name=f'{model_name} (AUC ≈ {model_auc:.3f})',
-                        line=dict(color=color.replace('0.3', '0.6'), width=1.5, dash='dot'),
-                        showlegend=True,
-                        hovertemplate=f'<b>{model_name}</b><br>AUC: {model_auc:.3f}<extra></extra>'
-                    ))
-
         fig_roc.update_layout(
-            title=f"ROC Curve - {best_model_name} on Test Set",
+            title=f"ROC Curves - Classification Model Comparison",
             xaxis_title="False Positive Rate",
             yaxis_title="True Positive Rate (Sensitivity)",
             height=600,
@@ -729,7 +753,7 @@ elif page == "Model Performance":
             legend=dict(
                 x=0.55,
                 y=0.05,
-                bgcolor='rgba(255, 255, 255, 0.9)',
+                bgcolor='rgba(255, 255, 255, 0.95)',
                 bordercolor='gray',
                 borderwidth=1
             ),
@@ -741,82 +765,57 @@ elif page == "Model Performance":
 
         st.plotly_chart(fig_roc, use_container_width=True)
 
-        # Performance metrics at optimal threshold
-        st.markdown("### 🎯 Performance Metrics")
+        # Model comparison (SINGLE INSTANCE)
+        st.markdown("---")
+        st.markdown("### 📊 Model Performance Comparison")
 
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2 = st.columns([2, 1])
 
         with col1:
-            st.metric("AUC Score", f"{roc_auc:.3f}")
+            # Bar chart of all model AUCs
+            fig_compare = go.Figure()
+
+            fig_compare.add_trace(go.Bar(
+                x=clf_results['Test AUC'],
+                y=clf_results['Model'],
+                orientation='h',
+                marker=dict(
+                    color=clf_results['Test AUC'],
+                    colorscale='Blues',
+                    showscale=False,
+                    line=dict(color='white', width=1)
+                ),
+                text=[f"{x:.3f}" for x in clf_results['Test AUC']],
+                textposition='outside'
+            ))
+
+            fig_compare.add_vline(
+                x=0.5,
+                line_dash="dash",
+                line_color="red",
+                annotation_text="Random",
+                annotation_position="top"
+            )
+
+            fig_compare.update_layout(
+                title="All Models - Test AUC Comparison",
+                xaxis_title="AUC Score",
+                yaxis_title="",
+                height=300,
+                showlegend=False,
+                plot_bgcolor='rgba(240,240,240,0.5)',
+                xaxis=dict(range=[0.4, 0.8])
+            )
+
+            st.plotly_chart(fig_compare, use_container_width=True)
 
         with col2:
-            # Find optimal threshold (Youden's index: max(TPR - FPR))
-            optimal_idx = np.argmax(tpr - fpr)
-            optimal_threshold = thresholds[optimal_idx]
-            st.metric("Optimal Threshold", f"{optimal_threshold:.3f}")
-
-        with col3:
-            sensitivity = tpr[optimal_idx]
-            st.metric("Sensitivity @ Optimal", f"{sensitivity:.3f}",
-                      help="True Positive Rate: correctly identifying high-risk IPOs")
-
-        with col4:
-            specificity = 1 - fpr[optimal_idx]
-            st.metric("Specificity @ Optimal", f"{specificity:.3f}",
-                      help="True Negative Rate: correctly identifying low-risk IPOs")
-
-        # Model comparison table
-        if len(clf_results) > 1:
-            st.markdown("---")
-            st.markdown("### 📊 Model Comparison")
-
-            col1, col2 = st.columns([2, 1])
-
-            with col1:
-                # Bar chart of all model AUCs
-                fig_compare = go.Figure()
-
-                fig_compare.add_trace(go.Bar(
-                    x=clf_results['Test AUC'],
-                    y=clf_results['Model'],
-                    orientation='h',
-                    marker=dict(
-                        color=clf_results['Test AUC'],
-                        colorscale='Blues',
-                        showscale=False,
-                        line=dict(color='white', width=1)
-                    ),
-                    text=[f"{x:.3f}" for x in clf_results['Test AUC']],
-                    textposition='outside'
-                ))
-
-                fig_compare.add_vline(
-                    x=0.5,
-                    line_dash="dash",
-                    line_color="red",
-                    annotation_text="Random",
-                    annotation_position="top"
-                )
-
-                fig_compare.update_layout(
-                    title="All Models - Test AUC Comparison",
-                    xaxis_title="AUC Score",
-                    yaxis_title="",
-                    height=300,
-                    showlegend=False,
-                    plot_bgcolor='rgba(240,240,240,0.5)',
-                    xaxis=dict(range=[0.4, 0.8])
-                )
-
-                st.plotly_chart(fig_compare, use_container_width=True)
-
-            with col2:
-                st.markdown("**Performance Ranking:**")
-                for idx, row in clf_results.iterrows():
-                    rank_emoji = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else "📊"
-                    st.markdown(f"{rank_emoji} **{row['Model']}**")
-                    st.markdown(f"   AUC: {row['Test AUC']:.3f}")
-                    st.markdown("")
+            st.markdown("**Performance Ranking:**")
+            for idx, row in clf_results.iterrows():
+                rank_emoji = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else "📊"
+                st.markdown(f"{rank_emoji} **{row['Model']}**")
+                st.markdown(f"   AUC: {row['Test AUC']:.3f}")
+                st.markdown("")
 
         # Educational content
         with st.expander("📚 Understanding ROC Curves"):
@@ -827,41 +826,30 @@ elif page == "Model Performance":
                 - Y-axis: True Positive Rate (TPR) = correctly identifying high-risk IPOs
 
                 **Interpreting AUC (Area Under Curve):**
-                - **AUC = 1.0:** Perfect classifier (can perfectly separate classes)
-                - **AUC = 0.9-1.0:** Excellent performance
-                - **AUC = 0.8-0.9:** Good performance
-                - **AUC = 0.7-0.8:** Fair performance
-                - **AUC = 0.6-0.7:** Poor performance
-                - **AUC = 0.5:** Random guessing (the diagonal dashed line)
-                - **AUC < 0.5:** Worse than random (model is backwards)
+                - **AUC = 1.0:** Perfect classifier
+                - **AUC = 0.8-1.0:** Excellent performance
+                - **AUC = 0.7-0.8:** Good performance
+                - **AUC = 0.6-0.7:** Fair performance
+                - **AUC = 0.5:** Random guessing (diagonal line)
+                - **AUC < 0.5:** Worse than random
 
                 **For Investment Decisions:**
-                - **Higher TPR** = Catching more risky IPOs (avoiding losses) ✓
-                - **Lower FPR** = Not incorrectly flagging safe IPOs (missing opportunities) ✓
-                - The curve shows the trade-off between these two goals
-                - The optimal threshold balances both concerns
-
-                **Current Model Performance:**
-                - AUC = {:.3f} indicates {} predictive ability
-                - This means the model can distinguish between high-risk and low-risk IPOs {} than random guessing
-                """.format(
-                roc_auc,
-                "excellent" if roc_auc >= 0.8 else "good" if roc_auc >= 0.7 else "moderate" if roc_auc >= 0.6 else "weak",
-                "significantly better" if roc_auc >= 0.7 else "moderately better" if roc_auc >= 0.6 else "slightly better"
-            ))
-
-        # Note about other models
-        if len(clf_results) > 1:
-            st.info("""
-                **📝 Note on Model Comparison:** The main ROC curve shows the best model's actual performance. 
-                Other models' approximate curves are shown with dotted lines for reference. 
-                Their exact ROC curves would have different shapes but similar AUC values.
+                - Higher TPR = Catching more risky IPOs (avoiding losses)
+                - Lower FPR = Not incorrectly flagging safe IPOs
+                - The curve shows the trade-off between these goals
                 """)
+
+        # Note about visualization
+        st.info("""
+            **📝 Visualization Note:** The solid line shows the actual ROC curve for the best model. 
+            Dotted lines for other models are approximate reference curves based on their AUC scores.
+            Use the checkboxes above to show/hide specific models.
+            """)
 
     else:
         st.warning(
             "⚠️ ROC curve data not available. Ensure test predictions include 'high_risk' and 'risk_probability' columns.")
-
+        
     st.markdown("---")
 
     # Regression Results
